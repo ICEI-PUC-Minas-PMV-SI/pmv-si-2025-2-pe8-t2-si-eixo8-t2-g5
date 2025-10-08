@@ -6,11 +6,11 @@
 
 `SEMESTRE: 8º`
 
-Descrever resumidamente, em um ou dois parágrafos, o projeto que está sendo desenvolvido.
+Um sistema de agendamento e gestão para um *Salão de Beleza*.
 
 ## Integrantes
 
-* Nome completo do aluno 1
+* Henrique de Paula Lima
 * Nome completo do aluno 2
 * Nome completo do aluno 3
 * Nome completo do aluno 4
