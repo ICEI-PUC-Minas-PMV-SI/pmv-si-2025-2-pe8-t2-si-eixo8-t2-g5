@@ -1,0 +1,27 @@
+.banner {
+  height: 75vh;
+  width: 100%;
+  position: relative;
+  display: inline-flex;
+  margin-top: 5rem;
+
+  img {
+    height: 100%;
+    width: 50%;
+    object-fit: cover;
+  }
+
+  button {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    column-gap: .5rem;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 25px;
+    color: #FFF;
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 1rem 1.5rem;
+    transform: translate(-50%, -50%);
+  }
+}

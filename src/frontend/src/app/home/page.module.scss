@@ -1,12 +1,5 @@
 .home {
-  min-height: 100dvh;
+  min-height: calc(100dvh - 3rem);
+  width: 100dvw;
   background-color: aliceblue;
-  padding: 1.5rem;
-  
-  h1 {
-    font-size: 2rem;
-    font-weight: 700;
-    text-align: center;
-    color: #252525;
-  }
 }
