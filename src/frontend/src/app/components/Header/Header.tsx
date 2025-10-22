@@ -17,7 +17,11 @@ export default function Header() {
           </Button>
         </li>
         <li>
-          <Button variant="text" size='small'>Serviços</Button>
+          <Button variant="text" size='small'>
+            <Link href='/servicos'>
+              Serviços
+            </Link>
+          </Button>
         </li>
         <li>
           <Button variant="text" size='small'>Galeria</Button>
