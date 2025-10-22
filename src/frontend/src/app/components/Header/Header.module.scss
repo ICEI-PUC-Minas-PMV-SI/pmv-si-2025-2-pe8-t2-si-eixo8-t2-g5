@@ -24,6 +24,13 @@
       justify-content: flex-end;
     }
 
+    li {
+      a {
+        text-decoration: none;
+        color: #000;
+      }
+    }
+
     button {
       font-weight: 600;
       color: #252525;
@@ -31,6 +38,11 @@
       &.agendar_btn {
         background-color: #252525;
         color: #FFF;
+
+        a {
+          text-decoration: none;
+          color: #FFF;
+        }
       }
     }
   }

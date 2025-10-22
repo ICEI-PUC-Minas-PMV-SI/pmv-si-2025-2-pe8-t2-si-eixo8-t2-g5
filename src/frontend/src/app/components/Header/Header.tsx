@@ -3,13 +3,18 @@ import Button from '@mui/material/Button';
 import Person2OutlinedIcon from '@mui/icons-material/Person2Outlined';
 import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
 import IconButton from '@mui/material/IconButton';
+import Link from 'next/link';
 
 export default function Header() {
   return (
     <header className={styles.header}>
       <ul>
         <li>
-          <Button variant="text" size='small'>Início</Button>
+          <Button variant="text" size='small'>
+            <Link href='/home'>
+              Início
+            </Link>
+          </Button>
         </li>
         <li>
           <Button variant="text" size='small'>Serviços</Button>
@@ -21,7 +26,9 @@ export default function Header() {
           <Button variant="text" size='small'>Contato</Button>
         </li>
       </ul>
-      <img src="images/logo_black.png" alt="Logo" />
+      <Link href='/home'>
+        <img src="images/logo_black.png" alt="Logo" />
+      </Link>
       <ul>
         <li>
           <Button variant="text" size='small'>Área do cliente</Button>
@@ -30,7 +37,11 @@ export default function Header() {
           <Button variant="text" size='small'>Cliente mensalista</Button>
         </li>
         <li>
-          <Button variant="contained" className={styles.agendar_btn}>Agendar</Button>
+          <Button variant="contained" className={styles.agendar_btn}>
+            <Link href='/agendamento'>
+              Agendar
+            </Link>
+          </Button>
         </li>
         <li>
           <IconButton aria-label="delete">
