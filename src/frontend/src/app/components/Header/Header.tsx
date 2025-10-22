@@ -38,7 +38,11 @@ export default function Header() {
           <Button variant="text" size='small'>Área do cliente</Button>
         </li>
         <li>
-          <Button variant="text" size='small'>Cliente mensalista</Button>
+          <Button variant="text" size='small'>
+            <Link href='/login_mensalista'>
+              Cliente mensalista
+            </Link>
+          </Button>
         </li>
         <li>
           <Button variant="contained" className={styles.agendar_btn}>
