@@ -1,0 +1,36 @@
+.admin_menu {
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+
+  p {
+    font-family: 'Epilogue', sans-serif;
+    font-size: .75rem;
+    font-weight: 400;
+    padding-bottom: 1rem;
+  }
+
+  ul {
+    row-gap: 1rem;
+
+    li {
+
+      button {
+        width: 15rem;
+        justify-content: flex-start;
+
+        &.active {
+          background-color: #F5F0F2;
+        }
+
+        a {
+          display: inline-flex;
+          align-items: center;
+          column-gap: 1rem;
+          text-decoration: none;
+          color: #000;
+        }
+      }
+    }
+  }
+}
