@@ -4,14 +4,16 @@ import TextField from '@mui/material/TextField';
 import styles from './page.module.scss';
 import Button from '@mui/material/Button';
 import { FormEvent, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function LoginMensalistaPage() {
   const [user, setUser] = useState('');
   const [password, setPassword] = useState('');
+  const router = useRouter();
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
+    router.push('/portal_mensalista');
   }
 
   return (
