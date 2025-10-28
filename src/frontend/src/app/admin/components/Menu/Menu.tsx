@@ -34,7 +34,7 @@ export default function AdminMenu() {
           <Button variant="text" className={classNames({
             [styles.active]: currentPage === 'clientes'
           })}>
-            <Link href='/'>
+            <Link href='/admin/clientes'>
               <PeopleIcon />
               Clientes
             </Link>
