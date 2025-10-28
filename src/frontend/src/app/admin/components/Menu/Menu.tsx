@@ -7,6 +7,7 @@ import PeopleIcon from '@mui/icons-material/People';
 import ContentCutIcon from '@mui/icons-material/ContentCut';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
+import FeedIcon from '@mui/icons-material/Feed';
 import Button from '@mui/material/Button';
 import classNames from 'classnames';
 import { usePathname } from 'next/navigation';
@@ -66,6 +67,16 @@ export default function AdminMenu() {
             <Link href='/'>
               <CreditCardIcon />
               Pagamentos
+            </Link>
+          </Button>
+        </li>
+        <li>
+          <Button variant="text" className={classNames({
+            [styles.active]: currentPage === 'relatorios'
+          })}>
+            <Link href='/admin/relatorios'>
+              <FeedIcon />
+              Relatórios
             </Link>
           </Button>
         </li>
