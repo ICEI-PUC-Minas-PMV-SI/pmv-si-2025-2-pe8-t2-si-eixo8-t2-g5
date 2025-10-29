@@ -71,7 +71,7 @@ export default function AdminClientesPage() {
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <TabList onChange={handleTabChange} aria-label="lab API tabs example">
             <Tab label="Todos" value="1" />
-            <Tab label="Mensalistas" value="2" />
+            {/* <Tab label="Mensalistas" value="2" /> */}
           </TabList>
         </Box>
         <TabPanel value="1">

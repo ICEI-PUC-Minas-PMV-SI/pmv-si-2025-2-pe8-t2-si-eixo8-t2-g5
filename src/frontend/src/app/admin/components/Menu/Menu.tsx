@@ -54,7 +54,7 @@ export default function AdminMenu() {
           <Button variant="text" className={classNames({
             [styles.active]: currentPage === 'agendamentos'
           })}>
-            <Link href='/'>
+            <Link href='/admin/agendamentos'>
               <CalendarTodayIcon />
               Agendamentos
             </Link>
