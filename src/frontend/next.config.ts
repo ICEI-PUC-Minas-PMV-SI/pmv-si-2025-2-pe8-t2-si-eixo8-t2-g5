@@ -5,7 +5,32 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/',
-        destination: '/home',
+        destination: '/login',
+        permanent: true
+      },
+      {
+        source: '/agendamento',
+        destination: '/login',
+        permanent: true
+      },
+      {
+        source: '/home',
+        destination: '/login',
+        permanent: true
+      },
+      {
+        source: '/login_mensalista',
+        destination: '/login',
+        permanent: true
+      },
+      {
+        source: '/portal_mensalista',
+        destination: '/login',
+        permanent: true
+      },
+      {
+        source: '/servicos',
+        destination: '/login',
         permanent: true
       },
       {

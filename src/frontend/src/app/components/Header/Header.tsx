@@ -8,7 +8,7 @@ import Link from 'next/link';
 export default function Header() {
   return (
     <header className={styles.header}>
-      <ul>
+      {/* <ul>
         <li>
           <Button variant="text" size='small'>
             <Link href='/home'>
@@ -29,12 +29,12 @@ export default function Header() {
         <li>
           <Button variant="text" size='small'>Contato</Button>
         </li>
-      </ul>
-      <Link href='/home'>
+      </ul> */}
+      <Link href='/login'>
         <img src="images/logo_black.png" alt="Logo" />
       </Link>
       <ul>
-        <li>
+        {/* <li>
           <Button variant="text" size='small'>Área do cliente</Button>
         </li>
         <li>
@@ -50,17 +50,19 @@ export default function Header() {
               Agendar
             </Link>
           </Button>
-        </li>
+        </li> */}
         <li>
-          <IconButton aria-label="delete">
-            <Person2OutlinedIcon />
-          </IconButton>
+          <Link href='/login'>
+            <IconButton aria-label="delete">
+              <Person2OutlinedIcon />
+            </IconButton>
+          </Link>
         </li>
-        <li>
+        {/* <li>
           <IconButton aria-label="delete">
             <CalendarTodayOutlinedIcon />
           </IconButton>
-        </li>
+        </li> */}
       </ul>
     </header>
   );
