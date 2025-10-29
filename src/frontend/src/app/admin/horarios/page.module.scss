@@ -1,0 +1,85 @@
+.admin_horarios {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 3rem;
+  
+  h2 {
+    font-family: 'Manrope', sans-serif;
+    font-size: 2.5rem;
+    font-weight: 700;
+    padding-bottom: .5rem;
+  }
+  
+  p {
+    font-family: 'Manrope', sans-serif;
+    font-size: .75rem;
+    font-weight: 400;
+    padding-bottom: 2rem;
+  }
+  
+  .time_config {
+    display: inline-flex;
+    justify-content: space-between;
+    align-items: center;
+    
+    .available_dates {
+      display: flex;
+      flex-direction: column;
+      
+      h3 {
+        font-family: 'Manrope', sans-serif;
+        font-size: 1.5rem;
+        font-weight: 700;
+        padding-bottom: 1rem;
+      }
+      
+      .available_dates_list {
+        display: flex;
+        flex-direction: column;
+        row-gap: 1rem;
+        
+        .available_dates_item {
+          display: inline-flex;
+          justify-content: space-between;
+          align-items: center;
+          
+          .available_dates_item_info {
+            display: flex;
+            flex-direction: column;
+            row-gap: .5rem;
+            
+            h4 {
+              font-family: 'Manrope', sans-serif;
+              font-size: 1rem;
+              font-weight: 700;
+            }
+            
+            p {
+              font-family: 'Manrope', sans-serif;
+              font-size: .75rem;
+              font-weight: 400;
+            }
+          }
+          
+          button {
+            background-color: #F5F0F2;
+            color: #000;
+          }
+        }
+      }
+    }
+  }
+  
+  .search_input {
+    background-color: #F5F0F2;
+    margin-bottom: 1rem;
+  }
+  
+  .filters {
+    display: inline-flex;
+    justify-content: flex-start;
+    align-items: center;
+    column-gap: 1rem;
+    margin-bottom: 1rem;
+  }
+}

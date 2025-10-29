@@ -11,6 +11,7 @@ import FeedIcon from '@mui/icons-material/Feed';
 import Button from '@mui/material/Button';
 import classNames from 'classnames';
 import { usePathname } from 'next/navigation';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 
 export default function AdminMenu() {
   const pathname = usePathname();
@@ -57,6 +58,16 @@ export default function AdminMenu() {
             <Link href='/admin/agendamentos'>
               <CalendarTodayIcon />
               Agendamentos
+            </Link>
+          </Button>
+        </li>
+        <li>
+          <Button variant="text" className={classNames({
+            [styles.active]: currentPage === 'horarios'
+          })}>
+            <Link href='/admin/horarios'>
+              <AccessTimeIcon />
+              Horários
             </Link>
           </Button>
         </li>
