@@ -1,4 +1,4 @@
-# Título do Projeto
+# Salão de Beleza
 
 `CURSO: Sistemas de Informação`
 
