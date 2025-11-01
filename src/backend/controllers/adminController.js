@@ -7,39 +7,45 @@ exports.getAgendamentos = async (req, res) => {
   const { search, date, service, status } = req.query;
   
   let query = `
-    SELECT id, nome_cliente, servico, 
-           TO_CHAR(data_hora, 'DD/MM/YYYY') as data,
-           TO_CHAR(data_hora, 'HH24:MI') as hora,
-           status,
-           pagamento
-    FROM agendamentos
+    SELECT 
+      a.id, 
+      a.nome_cliente, 
+      s.name AS servico,
+      TO_CHAR(a.data_hora, 'DD/MM/YYYY') as data,
+      TO_CHAR(a.data_hora, 'HH24:MI') as hora,
+      a.status,
+      a.pagamento
+    FROM 
+      agendamentos AS a
+    LEFT JOIN 
+      services AS s ON a.servico::int = s.id
     WHERE 1=1 
   `;
   const values = [];
   let paramIndex = 1;
 
   if (search) {
-    query += ` AND (nome_cliente ILIKE $${paramIndex} OR servico ILIKE $${paramIndex})`;
+    query += ` AND (a.nome_cliente ILIKE $${paramIndex} OR s.name ILIKE $${paramIndex})`; 
     values.push(`%${search}%`);
     paramIndex++;
   }
   if (date) {
-    query += ` AND DATE(data_hora) = $${paramIndex}`;
+    query += ` AND DATE(a.data_hora) = $${paramIndex}`;
     values.push(date); 
     paramIndex++;
   }
-  if (service) {
-    query += ` AND servico = $${paramIndex}`;
+  if (service) { 
+    query += ` AND a.servico::int = $${paramIndex}`;
     values.push(service);
     paramIndex++;
   }
   if (status) {
-    query += ` AND status = $${paramIndex}`;
+    query += ` AND a.status = $${paramIndex}`;
     values.push(status);
     paramIndex++;
   }
 
-  query += ` ORDER BY data_hora DESC;`;
+  query += ` ORDER BY a.data_hora DESC;`;
 
   try {
     const result = await db.query(query, values);
@@ -133,7 +139,7 @@ exports.getHorariosConfig = async (req, res) => {
       };
     });
 
-    res.status(200).json(config);
+    res.status(200).json(config); 
   } catch (error) {
     res.status(500).json({ message: 'Erro ao buscar configurações.', error: error.message });
   }
@@ -141,7 +147,7 @@ exports.getHorariosConfig = async (req, res) => {
 
 exports.updateHorariosConfig = async (req, res) => {
   try {
-    const { periodo, inicio, fim } = req.body;
+    const { periodo, inicio, fim } = req.body; 
 
     if (!periodo || !inicio || !fim) {
       return res.status(400).json({ message: 'Dados incompletos (periodo, inicio, fim).' });
@@ -177,8 +183,8 @@ exports.getAgendaSemana = async (req, res) => {
     }
 
     const getWeekRange = (date) => {
-      const startOfWeek = dayjs(date).startOf('day').day(1);
-      const endOfWeek = dayjs(date).startOf('day').day(6);
+      const startOfWeek = dayjs(date).startOf('day').day(1); 
+      const endOfWeek = dayjs(date).startOf('day').day(6); 
       
       return {
         start: startOfWeek.format('YYYY-MM-DD 00:00:00'),
@@ -199,7 +205,7 @@ exports.getAgendaSemana = async (req, res) => {
       FROM 
         agendamentos a
       LEFT JOIN 
-        servicos s ON a.servico::int = s.id
+        services s ON a.servico::int = s.id
       WHERE 
         a.data_hora >= $1 AND a.data_hora <= $2
     `;
@@ -210,7 +216,7 @@ exports.getAgendaSemana = async (req, res) => {
       params.push(serviceId);
     }
     if (status && status !== '0') {
-      const statusMap = { '1': 'pendente', '2': 'confirmado', '3': 'concluido' };
+      const statusMap = { '1': 'pendente', '2': 'confirmado', '3': 'concluido' }; 
       if(statusMap[status]) {
         query += ` AND a.status = $${paramIndex++}`;
         params.push(statusMap[status]);
@@ -234,11 +240,11 @@ exports.getAgendaSemana = async (req, res) => {
 
     const grid = [];
     
-    for (const slotStart of timeSlots) {
+    for (const slotStart of timeSlots) { 
       const slotRow = [];
-      const slotStartTime = parseInt(slotStart.split(':')[0]);
+      const slotStartTime = parseInt(slotStart.split(':')[0]); 
 
-      for (let dayIndex = 1; dayIndex <= 6; dayIndex++) {
+      for (let dayIndex = 1; dayIndex <= 6; dayIndex++) { 
         const currentDay = dayjs(date).day(dayIndex);
         
         const appointment = agendamentos.find(app => {
@@ -256,15 +262,15 @@ exports.getAgendaSemana = async (req, res) => {
           });
         } else {
           const isWorkingTime = configRows.some(config => {
-             const inicio = parseInt(config.hora_inicio.split(':')[0]);
-             const fim = parseInt(config.hora_fim.split(':')[0]);
+             const inicio = parseInt(config.hora_inicio.split(':')[0]); 
+             const fim = parseInt(config.hora_fim.split(':')[0]);     
              return slotStartTime >= inicio && slotStartTime < fim;
           });
 
           if (isWorkingTime) {
             slotRow.push({ status: 'Disponível' });
           } else {
-            slotRow.push({ status: 'Bloqueado' });
+            slotRow.push({ status: 'Bloqueado' }); 
           }
         }
       }

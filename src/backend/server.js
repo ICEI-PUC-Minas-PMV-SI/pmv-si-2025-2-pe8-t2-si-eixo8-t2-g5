@@ -17,6 +17,7 @@ const clienteRoutes = require('./routes/clienteRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const reportRoutes = require('./routes/reportRoutes'); 
 const registerRoutes = require('./routes/registerRoutes');
+const horariosRoutes = require('./routes/horariosRoutes');
 
 
 app.use('/api', authRoutes); 
@@ -28,7 +29,7 @@ app.use('/api/clientes', clienteRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/reports', reportRoutes); 
 app.use('/api', registerRoutes);
-
+app.use('/api/horarios', horariosRoutes);
 console.log('Report Routes:', reportRoutes);
 console.log('Report Controller:', require('./controllers/reportController'));
 

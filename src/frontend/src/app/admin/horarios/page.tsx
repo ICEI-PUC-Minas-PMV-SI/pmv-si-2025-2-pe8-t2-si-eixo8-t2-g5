@@ -1,8 +1,13 @@
 'use client';
 
 import styles from './page.module.scss';
-import { useState } from 'react';
+import { useState, useEffect, FormEvent } from 'react'; 
 import dayjs, { Dayjs } from 'dayjs';
+import 'dayjs/locale/pt-br';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+dayjs.locale('pt-br');
+dayjs.extend(customParseFormat);
+
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
@@ -22,46 +27,165 @@ import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
 import TableBody from '@mui/material/TableBody';
 import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
+import Tooltip from '@mui/material/Tooltip';
 
-const generateTimeSlots = (startHour: number, endHour: number) => {
-  const slots = [];
-  for (let hour = startHour; hour < endHour; hour++) {
-    const start = dayjs().hour(hour).minute(0).format('HH:mm');
-    const end = dayjs().hour(hour + 1).minute(0).format('HH:mm');
-    slots.push(`${start} - ${end}`);
+
+interface AgendaCellData {
+  status: 'Disponível' | 'Ocupado' | 'Bloqueado';
+  appId?: number;
+  cliente?: string;
+  servico?: string;
+  statusApp?: string;
+}
+
+interface AgendaData {
+  timeSlots: string[];
+  grid: AgendaCellData[][];
+}
+
+function AgendaCell({ data }: { data: AgendaCellData }) {
+  let backgroundColor = '#f8eef0';
+  let color = '#a66a7b';
+  let text = 'Bloqueado';
+
+  if (data.status === 'Disponível') {
+    backgroundColor = '#e8f5e9';
+    color = '#4caf50';
+    text = 'Disponível';
+  } else if (data.status === 'Ocupado') {
+    backgroundColor = '#fce4ec';
+    color = '#c51162';
+    text = 'Ocupado';
   }
-  return slots;
-};
 
-const timeSlots = generateTimeSlots(9, 18);
+  const cellContent = (
+    <Box
+      sx={{
+        backgroundColor,
+        color,
+        borderRadius: '16px',
+        display: 'inline-block',
+        px: 2,
+        py: 0.5,
+        fontWeight: 500,
+        fontSize: '0.875rem',
+        textAlign: 'center',
+        cursor: data.appId ? 'pointer' : 'default',
+      }}
+    >
+      {text}
+    </Box>
+  );
 
-const rows = [
-  ['Disponível', 'Ocupado', 'Disponível', 'Ocupado', 'Disponível', 'Ocupado'],
-  ['Ocupado', 'Disponível', 'Ocupado', 'Disponível', 'Ocupado', 'Disponível'],
-  ['Disponível', 'Ocupado', 'Disponível', 'Ocupado', 'Disponível', 'Ocupado'],
-  ['Ocupado', 'Disponível', 'Ocupado', 'Disponível', 'Ocupado', 'Disponível'],
-  ['Disponível', 'Ocupado', 'Disponível', 'Ocupado', 'Disponível', 'Ocupado'],
-  ['Ocupado', 'Disponível', 'Ocupado', 'Disponível', 'Ocupado', 'Disponível'],
-  ['Disponível', 'Ocupado', 'Disponível', 'Ocupado', 'Disponível', 'Ocupado'],
-  ['Ocupado', 'Disponível', 'Ocupado', 'Disponível', 'Ocupado', 'Disponível'],
-  ['Disponível', 'Ocupado', 'Disponível', 'Ocupado', 'Disponível', 'Ocupado'],
-];
+  if (data.status === 'Ocupado') {
+    return (
+      <Tooltip title={
+        <div>
+          <p><strong>Cliente:</strong> {data.cliente}</p>
+          <p><strong>Serviço:</strong> {data.servico}</p>
+          <p><strong>Status:</strong> {data.statusApp}</p>
+        </div>
+      }>
+        {cellContent}
+      </Tooltip>
+    )
+  }
+
+  return cellContent;
+}
+
 
 export default function AdminHorariosPage() {
   const [date, setDate] = useState<Dayjs | null>(dayjs());
+  
   const [morningStartTime, setMorningStartTime] = useState<Dayjs>(dayjs().hour(8).minute(0));
   const [morningEndTime, setMorningEndTime] = useState<Dayjs>(dayjs().hour(12).minute(0));
   const [afternoonStartTime, setAfternoonStartTime] = useState<Dayjs>(dayjs().hour(13).minute(0));
   const [afternoonEndTime, setAfternoonEndTime] = useState<Dayjs>(dayjs().hour(18).minute(0));
   const [nightStartTime, setNightStartTime] = useState<Dayjs>(dayjs().hour(19).minute(0));
   const [nightEndTime, setNightEndTime] = useState<Dayjs>(dayjs().hour(22).minute(0));
+  
   const [openEditDialog, setOpenEditDialog] = useState(false);
-  const [currentPeriod, setCurrentPeriod] = useState<'morning' | 'afternoon' | 'night'>('morning');
+  const [currentPeriod, setCurrentPeriod] = useState<'manha' | 'tarde' | 'noite'>('manha');
+  const [isLoadingConfig, setIsLoadingConfig] = useState(false);
+  const [errorConfig, setErrorConfig] = useState<string | null>(null);
+
   const [search, setSearch] = useState('');
   const [service, setService] = useState('0');
   const [status, setStatus] = useState('0');
 
-  const openTimeDialog = (type: 'morning' | 'afternoon' | 'night') => {
+  const [agendaData, setAgendaData] = useState<AgendaData | null>(null);
+  const [isLoadingAgenda, setIsLoadingAgenda] = useState(false);
+  const [errorAgenda, setErrorAgenda] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const fetchHorariosConfig = async () => {
+      setIsLoadingConfig(true);
+      setErrorConfig(null);
+      try {
+        const response = await fetch('/api/horarios/config');
+        if (!response.ok) {
+          throw new Error('Falha ao carregar horários de trabalho.');
+        }
+        const data = await response.json();
+        
+        setMorningStartTime(dayjs(data.manha.inicio, 'HH:mm'));
+        setMorningEndTime(dayjs(data.manha.fim, 'HH:mm'));
+        setAfternoonStartTime(dayjs(data.tarde.inicio, 'HH:mm'));
+        setAfternoonEndTime(dayjs(data.tarde.fim, 'HH:mm'));
+        setNightStartTime(dayjs(data.noite.inicio, 'HH:mm'));
+        setNightEndTime(dayjs(data.noite.fim, 'HH:mm'));
+
+      } catch (err: any) {
+        setErrorConfig(err.message);
+      } finally {
+        setIsLoadingConfig(false);
+      }
+    };
+    
+    fetchHorariosConfig();
+  }, []);
+
+  useEffect(() => {
+    const fetchAgenda = async () => {
+      if (!date) return;
+
+      setIsLoadingAgenda(true);
+      setErrorAgenda(null);
+      setAgendaData(null);
+      
+      try {
+        const params = new URLSearchParams();
+        params.append('date', date.format('YYYY-MM-DD'));
+        params.append('serviceId', service);
+        params.append('status', status);
+        params.append('search', search);
+
+        const response = await fetch(`/api/admin/agenda-semana?${params.toString()}`); 
+        if (!response.ok) {
+          throw new Error('Falha ao carregar a agenda da semana.');
+        }
+
+        const data: AgendaData = await response.json();
+        setAgendaData(data);
+        if (data.grid.length === 0) {
+          setErrorAgenda('Nenhum horário de trabalho configurado para esta semana.');
+        }
+
+      } catch (err: any) {
+        setErrorAgenda(err.message);
+      } finally {
+        setIsLoadingAgenda(false);
+      }
+    };
+
+    fetchAgenda();
+  }, [date, service, status, search]);
+
+
+  const openTimeDialog = (type: 'manha' | 'tarde' | 'noite') => {
     setCurrentPeriod(type);
     setOpenEditDialog(true);
   };
@@ -70,30 +194,57 @@ export default function AdminHorariosPage() {
     setOpenEditDialog(false);
   };
 
-  const handleTimeChange = (startTime: Dayjs, endTime: Dayjs) => {
-    switch (currentPeriod) {
-      case 'morning':
-        setMorningStartTime(startTime);
-        setMorningEndTime(endTime);
-        break;
-      case 'afternoon':
-        setAfternoonStartTime(startTime);
-        setAfternoonEndTime(endTime);
-        break;
-      case 'night':
-        setNightStartTime(startTime);
-        setNightEndTime(endTime);
-        break;
+  const handleTimeChange = async (startTime: Dayjs, endTime: Dayjs) => {
+    setIsLoadingConfig(true);
+    setErrorConfig(null);
+
+    try {
+      const response = await fetch('/api/horarios/config', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          periodo: currentPeriod,
+          inicio: startTime.format('HH:mm'),
+          fim: endTime.format('HH:mm'),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Falha ao salvar horário.');
+      }
+      
+      switch (currentPeriod) {
+        case 'manha':
+          setMorningStartTime(startTime);
+          setMorningEndTime(endTime);
+          break;
+        case 'tarde':
+          setAfternoonStartTime(startTime);
+          setAfternoonEndTime(endTime);
+          break;
+        case 'noite':
+          setNightStartTime(startTime);
+          setNightEndTime(endTime);
+          break;
+      }
+      handleClose();
+
+    } catch (err: any) {
+      setErrorConfig(err.message);
+    } finally {
+      setIsLoadingConfig(false);
     }
   };
 
   const getCurrentTimes = () => {
     switch (currentPeriod) {
-      case 'morning':
+      case 'manha':
         return { start: morningStartTime, end: morningEndTime };
-      case 'afternoon':
+      case 'tarde':
         return { start: afternoonStartTime, end: afternoonEndTime };
-      case 'night':
+      case 'noite':
         return { start: nightStartTime, end: nightEndTime };
     }
   };
@@ -102,7 +253,7 @@ export default function AdminHorariosPage() {
 
   const handleSearch = (newValue: string) => {
     setSearch(newValue);
-  }
+  };
 
   const handleServiceChange = (event: SelectChangeEvent) => {
     setService(event.target.value as string);
@@ -117,7 +268,7 @@ export default function AdminHorariosPage() {
       <h2>Gerenciar Horários</h2>
       <p>Defina e gerencie os horários livres na agenda do salão.</p>
       <div className={styles.time_config}>
-        <LocalizationProvider dateAdapter={AdapterDayjs}>
+        <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="pt-br">
           <DateCalendar
             value={date}
             onChange={(newValue) => setDate(newValue)}
@@ -128,27 +279,29 @@ export default function AdminHorariosPage() {
         </LocalizationProvider>
         <div className={styles.available_dates}>
           <h3>Horários Disponíveis</h3>
+          {isLoadingConfig && <CircularProgress size={24} />}
+          {errorConfig && <Alert severity="error">{errorConfig}</Alert>}
           <div className={styles.available_dates_list}>
             <div className={styles.available_dates_item}>
               <div className={styles.available_dates_item_info}>
                 <h4>Manhã</h4>
                 <p>{morningStartTime.format('HH:mm')} - {morningEndTime.format('HH:mm')}</p>
               </div>
-              <Button onClick={() => openTimeDialog('morning')} variant="contained">Editar</Button>
+              <Button onClick={() => openTimeDialog('manha')} variant="contained">Editar</Button>
             </div>
             <div className={styles.available_dates_item}>
               <div className={styles.available_dates_item_info}>
                 <h4>Tarde</h4>
                 <p>{afternoonStartTime.format('HH:mm')} - {afternoonEndTime.format('HH:mm')}</p>
               </div>
-              <Button onClick={() => openTimeDialog('afternoon')} variant="contained">Editar</Button>
+              <Button onClick={() => openTimeDialog('tarde')} variant="contained">Editar</Button>
             </div>
             <div className={styles.available_dates_item}>
               <div className={styles.available_dates_item_info}>
                 <h4>Noite</h4>
                 <p>{nightStartTime.format('HH:mm')} - {nightEndTime.format('HH:mm')}</p>
               </div>
-              <Button onClick={() => openTimeDialog('night')} variant="contained">Editar</Button>
+              <Button onClick={() => openTimeDialog('noite')} variant="contained">Editar</Button>
             </div>
           </div>
           <EditDialog
@@ -170,7 +323,7 @@ export default function AdminHorariosPage() {
             </IconButton>
           </InputAdornment>
         }
-        placeholder='Buscar  horários por data ou serviço'
+        placeholder='Buscar horários por nome do cliente'
         className={styles.search_input}
       />
       <div className={styles.filters}>
@@ -181,17 +334,9 @@ export default function AdminHorariosPage() {
             bgcolor: '#F7F7F7',
           }}
         >
-          <MenuItem value={0} selected>Selecione um serviço</MenuItem>
-          <MenuItem value={1}>Corte de Cabelo</MenuItem>
-          <MenuItem value={2}>Coloração</MenuItem>
-          <MenuItem value={3}>Mechas</MenuItem>
-          <MenuItem value={4}>Tratamentos Capilares</MenuItem>
-          <MenuItem value={5}>Maquiagem Social</MenuItem>
-          <MenuItem value={6}>Maquiagem para Festas</MenuItem>
-          <MenuItem value={7}>Maquiagem para Noivas</MenuItem>
-          <MenuItem value={8}>Manicure</MenuItem>
-          <MenuItem value={9}>Pedicure</MenuItem>
-          <MenuItem value={10}>Alongamento de Unhas</MenuItem>
+          <MenuItem value="0">Todos os serviços</MenuItem>
+          <MenuItem value="1">Corte de Cabelo</MenuItem>
+          <MenuItem value="10">Alongamento de Unhas</MenuItem>
         </Select>
         <Select
           value={status}
@@ -200,63 +345,60 @@ export default function AdminHorariosPage() {
             bgcolor: '#F7F7F7',
           }}
         >
-          <MenuItem value={0} selected>Selecione um status</MenuItem>
-          <MenuItem value={1}>Pendente</MenuItem>
-          <MenuItem value={2}>Confirmado</MenuItem>
-          <MenuItem value={3}>Concluído</MenuItem>
+          <MenuItem value="0">Todos os status</MenuItem>
+          <MenuItem value="1">Pendente</MenuItem>
+          <MenuItem value="2">Confirmado</MenuItem>
+          <MenuItem value="3">Concluído</MenuItem>
         </Select>
       </div>
-      <TableContainer component={Paper} sx={{ borderRadius: '12px' }}>
-        <Table sx={{ minWidth: 800 }} aria-label="tabela de horários">
-          <TableHead>
-            <TableRow>
-              <TableCell>Horário</TableCell>
-              <TableCell>Segunda-feira</TableCell>
-              <TableCell>Terça-feira</TableCell>
-              <TableCell>Quarta-feira</TableCell>
-              <TableCell>Quinta-feira</TableCell>
-              <TableCell>Sexta-feira</TableCell>
-              <TableCell>Sábado</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {timeSlots.map((slot, index) => (
-              <TableRow key={slot}>
-                <TableCell
-                  sx={{
-                    fontWeight: 600,
-                    color: '#a66a7b',
-                    width: '140px',
-                  }}
-                >
-                  {slot}
-                </TableCell>
 
-                {/* Status cells */}
-                {rows[index].map((status, i) => (
-                  <TableCell key={i}>
-                    <Box
-                      sx={{
-                        backgroundColor: '#f8eef0',
-                        borderRadius: '16px',
-                        display: 'inline-block',
-                        px: 2,
-                        py: 0.5,
-                        color: status === 'Disponível' ? '#4caf50' : '#a66a7b',
-                        fontWeight: 500,
-                        fontSize: '0.875rem',
-                        textAlign: 'center',
-                      }}
-                    >
-                      {status}
-                    </Box>
-                  </TableCell>
-                ))}
+      {isLoadingAgenda && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', my: 5 }}>
+          <CircularProgress />
+        </Box>
+      )}
+      {errorAgenda && (
+        <Alert severity="warning" sx={{ mt: 2 }}>{errorAgenda}</Alert>
+      )}
+      
+      {agendaData && agendaData.grid.length > 0 && (
+        <TableContainer component={Paper} sx={{ borderRadius: '12px', mt: 3 }}>
+          <Table sx={{ minWidth: 800 }} aria-label="tabela de horários">
+            <TableHead>
+              <TableRow>
+                <TableCell>Horário</TableCell>
+                <TableCell>Segunda-feira</TableCell>
+                <TableCell>Terça-feira</TableCell>
+                <TableCell>Quarta-feira</TableCell>
+                <TableCell>Quinta-feira</TableCell>
+                <TableCell>Sexta-feira</TableCell>
+                <TableCell>Sábado</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {agendaData.timeSlots.map((slot, slotIndex) => (
+                <TableRow key={slot}>
+                  <TableCell
+                    sx={{
+                      fontWeight: 600,
+                      color: '#a66a7b',
+                      width: '140px',
+                    }}
+                  >
+                    {slot}
+                  </TableCell>
+
+                  {agendaData.grid[slotIndex].map((cellData, dayIndex) => (
+                    <TableCell key={dayIndex}>
+                      <AgendaCell data={cellData} />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
     </main>
   );
 }

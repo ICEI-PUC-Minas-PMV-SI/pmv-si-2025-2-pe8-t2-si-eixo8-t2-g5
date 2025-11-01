@@ -15,41 +15,79 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleClickShowPassword = () => setShowPassword((show) => !show);
 
-  const login = (event: FormEvent<HTMLFormElement>) => {
+  const login = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    
-    router.push('/admin/dashboard');
-  }
+
+    if (!username || !password) {
+      alert('Preencha todos os campos.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await fetch('http://localhost:7208/api/autenticar', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || 'Falha na autenticação');
+        setLoading(false);
+        return;
+      }
+
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+
+      router.push('/admin/dashboard');
+    } catch (error) {
+      alert('Erro de conexão com o servidor. Verifique se o backend está rodando.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <main className={styles.login}>
       <form onSubmit={login} className={styles.block}>
         <h2>Login</h2>
-        <p>Acesse sua conta de administrador usando nome de usuários/email e senha.</p>
+        <p>Acesse sua conta de administrador usando nome de usuário ou e-mail e senha.</p>
+
         <div className={styles.form_field}>
           <label>Nome de usuário / Email</label>
           <TextField
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             variant="outlined"
+            fullWidth
+            placeholder="Digite seu nome de usuário ou email"
           />
         </div>
+
         <div className={styles.form_field}>
           <label>Senha</label>
           <OutlinedInput
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             type={showPassword ? 'text' : 'password'}
+            fullWidth
+            placeholder="Digite sua senha"
             endAdornment={
               <InputAdornment position="end">
                 <IconButton
-                  aria-label={
-                    showPassword ? 'hide the password' : 'display the password'
-                  }
+                  aria-label={showPassword ? 'ocultar senha' : 'mostrar senha'}
                   onClick={handleClickShowPassword}
                   edge="end"
                 >
@@ -59,7 +97,17 @@ export default function LoginPage() {
             }
           />
         </div>
-        <Button disabled={!username || username === '' || !password || password === ''} className={styles.submit_btn} variant="contained" type='submit'>Entrar</Button>
+
+        <Button
+          disabled={loading || !username || !password}
+          className={styles.submit_btn}
+          variant="contained"
+          type="submit"
+          fullWidth
+          sx={{ mt: 2 }}
+        >
+          {loading ? 'Entrando...' : 'Entrar'}
+        </Button>
       </form>
     </main>
   );

@@ -1,3 +1,6 @@
+"use client";
+
+import { useState, useEffect } from 'react'; 
 import styles from './page.module.scss';
 import TableContainer from '@mui/material/TableContainer';
 import Table from '@mui/material/Table';
@@ -10,24 +13,83 @@ import Button from '@mui/material/Button';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import DownloadIcon from '@mui/icons-material/Download';
 
-function createData(
-  data: string,
-  servico: string,
-  profissional: string,
-  preco: number,
-) {
-  return { data, servico, profissional, preco };
+interface HistoricoRow {
+  id: number;
+  data: string;
+  servico: string;
+  profissional: string;
+  preco: number;
 }
 
-const rows = [
-  createData('2024-07-20', 'Cabelo & Estilo', 'Sofia', 85.00),
-  createData('2024-07-10', 'Manicure', 'Isabela', 45.00),
-  createData('2024-06-25', 'Facial', 'Olivia', 120.00),
-  createData('2024-06-15', 'Tratamento de cabelo', 'Sofia', 150.00),
-  createData('2024-06-05', 'Pedicure', 'Isabela', 55.00),
-]
-
 export default function PortalMensalista() {
+  const [historico, setHistorico] = useState<HistoricoRow[]>([]);
+  const [totalMes, setTotalMes] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('token'); 
+        
+        if (!token) {
+          setError('Usuário não autenticado.');
+          setLoading(false);
+          return;
+        }
+
+        const res = await fetch('/api/historico/dashboard', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!res.ok) {
+          throw new Error('Falha ao buscar dados.');
+        }
+
+        const data = await res.json();
+        setHistorico(data.historico);
+        setTotalMes(data.totalMes);
+
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []); 
+
+  const handleDownloadPDF = async () => {
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch('/api/historico/relatorio-pdf', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (!res.ok) throw new Error('Erro ao gerar relatório');
+
+      const blob = await res.blob(); 
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'relatorio-servicos.pdf'; 
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      
+    } catch (error) {
+      console.error('Erro no download:', error);
+      alert('Não foi possível baixar o relatório.');
+    }
+  };
+  
+  if (loading) return <p>Carregando dados do portal...</p>;
+  if (error) return <p>Erro: {error}</p>;
+
   return (
     <main className={styles.portal_mensalista}>
       <h2>Mensalista Cliente Portal</h2>
@@ -45,9 +107,9 @@ export default function PortalMensalista() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {rows.map((row) => (
+              {historico.map((row) => (
                 <TableRow
-                  key={row.servico}
+                  key={row.id} 
                   sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
                 >
                   <TableCell align="right">{row.data}</TableCell>
@@ -62,11 +124,11 @@ export default function PortalMensalista() {
         <div className={styles.total_services}>
           <div className={styles.total_services_info}>
             <h5>Total de Serviços esse mês</h5>
-            <p>2</p>
+            <p>{totalMes}</p>
           </div>
           <CalendarTodayIcon />
         </div>
-        <Button variant="contained">
+        <Button variant="contained" onClick={handleDownloadPDF}>
           <DownloadIcon />
           Gerar Relatório (PDF)
         </Button>
