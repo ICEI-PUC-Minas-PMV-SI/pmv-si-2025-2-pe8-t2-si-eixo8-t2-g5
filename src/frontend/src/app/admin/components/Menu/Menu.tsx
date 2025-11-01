@@ -75,7 +75,7 @@ export default function AdminMenu() {
           <Button variant="text" className={classNames({
             [styles.active]: currentPage === 'pagamentos'
           })}>
-            <Link href='/'>
+            <Link href='/admin/pagamentos'>
               <CreditCardIcon />
               Pagamentos
             </Link>
