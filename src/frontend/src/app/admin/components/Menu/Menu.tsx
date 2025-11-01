@@ -25,7 +25,7 @@ export default function AdminMenu() {
           <Button variant="text" className={classNames({
             [styles.active]: currentPage === 'dashboard'
           })}>
-            <Link href='/'>
+            <Link href='/admin/dashboard'>
               <HomeFilledIcon />
               Dashboard
             </Link>

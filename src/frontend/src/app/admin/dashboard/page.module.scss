@@ -86,7 +86,11 @@
         background-color: #000;
         font-size: .75rem;
         font-weight: 600;
-        color: #FFF;
+        
+        a {
+          text-decoration: none;
+          color: #FFF;
+        }
       }
     }
   }
