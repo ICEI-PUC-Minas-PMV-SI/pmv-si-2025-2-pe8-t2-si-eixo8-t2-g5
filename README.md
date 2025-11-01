@@ -11,7 +11,7 @@ Um sistema de agendamento e gestão para um *Salão de Beleza*.
 ## Integrantes
 
 * Henrique de Paula Lima
-* Nome completo do aluno 2
+* Nathalia Souto Ferreira Pino
 * Nome completo do aluno 3
 * Nome completo do aluno 4
 * Nome completo do aluno 5
