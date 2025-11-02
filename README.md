@@ -20,5 +20,5 @@ Um sistema de agendamento e gestão para um *Salão de Beleza*.
 
 ## Orientador
 
-* Nome completo do professor 1
+* Simone Fernandes Queiroz
 
