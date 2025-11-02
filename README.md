@@ -13,7 +13,7 @@ Um sistema de agendamento e gestão para um *Salão de Beleza*.
 * Henrique de Paula Lima
 * Nathalia Souto Ferreira Pino
 * Camila Fernanda da Silva
-* Nome completo do aluno 4
+* Gabriela Scarabelli Bahia
 * Nome completo do aluno 5
 * Nome completo do aluno 6
 
