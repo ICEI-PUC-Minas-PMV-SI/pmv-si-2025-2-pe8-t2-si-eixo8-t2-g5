@@ -14,11 +14,9 @@ Um sistema de agendamento e gestão para um *Salão de Beleza*.
 * Nathalia Souto Ferreira Pino
 * Camila Fernanda da Silva
 * Gabriela Scarabelli Bahia
-* Wallace
+* Wallace Inácio Gomes de Sousa
 * Francisco
-
 
 ## Orientador
 
 * Simone Fernandes Queiroz
-
