@@ -5,7 +5,7 @@ import Tab from '@mui/material/Tab';
 import TabContext from '@mui/lab/TabContext';
 import TabList from '@mui/lab/TabList';
 import TabPanel from '@mui/lab/TabPanel';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useState, useEffect, useRef } from 'react';
 import Box from '@mui/material/Box';
 import dayjs, { Dayjs } from 'dayjs';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
@@ -21,30 +21,93 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
 import TableBody from '@mui/material/TableBody';
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
 
-function createData(
-  data: string,
-  cliente: string,
-  servico: string,
-  valor: string,
-  status: string
-) {
-  return { data, cliente, servico, valor, status };
+
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+
+
+interface ReportData {
+  summary: {
+    totalBilling: number;
+    averagePerAppointment: number;
+    completedAppointments: number;
+  };
+  details: {
+    id: string;
+    date: string; 
+    clientName: string;
+    serviceName: string;
+    value: number;
+    status: string;
+  }[];
 }
 
-const rows = [
-  createData('01/08/2024', 'Sofia Almeida', 'Corte de Cabelo', 'R$ 80,00', 'Concluído'),
-  createData('05/08/2024', 'Lucas Pereira', 'Barba', 'R$ 50,00', 'Concluído'),
-  createData('10/08/2024', 'Isabela Costa', 'Manicure', 'R$ 45,00', 'Concluído'),
-  createData('15/08/2024', 'Rafael Santos', 'Pedicure', 'R$ 55,00', 'Concluído'),
-  createData('20/08/2024', 'Mariana Oliveira', 'Coloração', 'R$ 120,00', 'Concluído'),
-];
+
+interface Servico {
+  id: number;
+  name: string;
+}
+
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value);
+};
+
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+};
+
 
 export default function RelatoriosAdminPage() {
+
+  const reportContentRef = useRef<HTMLDivElement>(null); 
+
   const [tab, setTab] = useState('1');
-  const [startDate, setStartDate] = useState<Dayjs | null>(dayjs('2022-04-17'));
-  const [endDate, setEndDate] = useState<Dayjs | null>(dayjs('2022-04-17'));
-  const [service, setService] = useState('0');
+  const [startDate, setStartDate] = useState<Dayjs | null>(dayjs().subtract(30, 'day'));
+  const [endDate, setEndDate] = useState<Dayjs | null>(dayjs());
+  const [service, setService] = useState('0'); 
+
+  const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false); 
+  
+  const [servicesList, setServicesList] = useState<Servico[]>([]);
+
+  useEffect(() => {
+    const fetchServices = async () => {
+      const authToken = localStorage.getItem('token'); 
+      if (!authToken) {
+        return; 
+      }
+
+      try {
+        const res = await fetch('http://localhost:7208/api/services', {
+           headers: {
+             'Authorization': `Bearer ${authToken}` 
+           }
+        });
+        
+        if (!res.ok) {
+          throw new Error('Falha ao carregar lista de serviços.');
+        }
+        const data = await res.json();
+        setServicesList(data);
+      } catch (err: any) {
+        console.error("Erro ao buscar serviços:", err.message);
+      }
+    };
+    fetchServices();
+  }, []);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: string) => {
     setTab(newValue);
@@ -54,10 +117,117 @@ export default function RelatoriosAdminPage() {
     setService(event.target.value as string);
   };
 
-  const generateReport = (event: FormEvent<HTMLFormElement>) => {
+  const generateReport = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-  }
+    setIsLoading(true);
+    setError(null);
+    setReportData(null); 
 
+    if (!startDate || !endDate) {
+      setError('Por favor, selecione data inicial e final.');
+      setIsLoading(false);
+      return;
+    }
+
+    const sDate = startDate.format('YYYY-MM-DD');
+    const eDate = endDate.format('YYYY-MM-DD');
+    
+    const authToken = localStorage.getItem('token'); 
+    
+    if (!authToken) {
+       setError('Sessão expirada ou usuário não autenticado. Faça login novamente.');
+       setIsLoading(false);
+       return;
+    }
+
+    try {
+      const response = await fetch(
+        `http://localhost:7208/api/reports/billing?startDate=${sDate}&endDate=${eDate}&serviceId=${service}`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        let errorText = `Falha ao buscar o relatório. Status: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          
+          if (response.status === 401 || response.status === 403) {
+             errorText = 'Erro de Autenticação. Por favor, faça login novamente.';
+          } else {
+             errorText = errorData.message || errorData.erro || errorText;
+          }
+        } catch (jsonError) {}
+        throw new Error(errorText);
+      }
+
+      const data: ReportData = await response.json();
+      setReportData(data);
+      
+      if (data.details.length === 0) {
+        setError('Nenhum resultado encontrado para os filtros selecionados.');
+      }
+
+    } catch (err: any) {
+      if (err.message.includes('Unexpected token')) {
+        setError('Erro de rede: Não foi possível conectar à API.');
+      } else {
+        setError(err.message);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
+  const handleExportPdf = async () => {
+    if (!reportContentRef.current) return;
+
+    setIsExporting(true);
+    
+    
+    const input = reportContentRef.current;
+    
+   
+    const canvas = await html2canvas(input, {
+        scale: 2, 
+        useCORS: true,
+    });
+    
+    const imgData = canvas.toDataURL('image/png');
+    
+
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const imgWidth = 200; 
+    const pageHeight = 295; 
+    const imgHeight = canvas.height * imgWidth / canvas.width;
+    let heightLeft = imgHeight;
+    let position = 0;
+
+   
+    pdf.addImage(imgData, 'PNG', 5, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+
+    while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 5, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+    }
+    
+   
+    const fileName = `Relatorio_Faturamento_${dayjs().format('YYYYMMDD')}.pdf`;
+    
+    pdf.save(fileName);
+    
+    setIsExporting(false);
+  };
+  
   return (
     <main className={styles.relatorios}>
       <h2>Relatórios</h2>
@@ -66,7 +236,6 @@ export default function RelatoriosAdminPage() {
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <TabList onChange={handleTabChange} aria-label="lab API tabs example">
             <Tab label="Faturamento" value="1" />
-            {/* <Tab label="Inadimplência" value="2" /> */}
           </TabList>
         </Box>
         <TabPanel value="1">
@@ -84,6 +253,7 @@ export default function RelatoriosAdminPage() {
                 <DatePicker value={endDate} onChange={(newValue) => setEndDate(newValue)} />
               </LocalizationProvider>
             </div>
+
             <div className={styles.form_field}>
               <label>Serviço</label>
               <Select
@@ -91,65 +261,82 @@ export default function RelatoriosAdminPage() {
                 label="Serviço"
                 onChange={handleChange}
               >
-                <MenuItem value={0} selected>Selecione um serviço</MenuItem>
-                <MenuItem value={1}>Corte de Cabelo</MenuItem>
-                <MenuItem value={2}>Coloração</MenuItem>
-                <MenuItem value={3}>Mechas</MenuItem>
-                <MenuItem value={4}>Tratamentos Capilares</MenuItem>
-                <MenuItem value={5}>Maquiagem Social</MenuItem>
-                <MenuItem value={6}>Maquiagem para Festas</MenuItem>
-                <MenuItem value={7}>Maquiagem para Noivas</MenuItem>
-                <MenuItem value={8}>Manicure</MenuItem>
-                <MenuItem value={9}>Pedicure</MenuItem>
-                <MenuItem value={10}>Alongamento de Unhas</MenuItem>
+                <MenuItem value="0">Todos os serviços</MenuItem> 
+                
+                {servicesList.map((s) => (
+                  <MenuItem key={s.id} value={String(s.id)}> 
+                    {s.name}
+                  </MenuItem>
+                ))}
               </Select>
             </div>
-            <Button className={styles.submit_btn} variant="contained" type='submit'>Gerar Relatório</Button>
+            
+            <Button className={styles.submit_btn} variant="contained" type='submit' disabled={isLoading}>
+              {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Gerar Relatório'}
+            </Button>
           </form>
-          <div className={styles.result}>
-            <h3>Resultados</h3>
-            <div className={styles.data_cards_list}>
-              <div className={styles.item}>
-                <h4>Faturamento Total</h4>
-                <p>R$ 15.500,00</p>
+          
+          {error && <Alert severity="warning" sx={{ mt: 3, mb: 2 }}>{error}</Alert>}
+          
+          {isLoading && !reportData && (
+             <Box sx={{ display: 'flex', justifyContent: 'center', my: 5 }}>
+                <CircularProgress />
+             </Box>
+          )}
+
+          {reportData && reportData.details.length > 0 && (
+            // ⭐️ ATENÇÃO: Adiciona a referência (ref) ao div que contém o relatório
+            <div className={styles.result} ref={reportContentRef}>
+              <h3>Resultados</h3>
+              <div className={styles.data_cards_list}>
+                <div className={styles.item}>
+                  <h4>Faturamento Total</h4>
+                  <p>{formatCurrency(reportData.summary.totalBilling)}</p>
+                </div>
+                <div className={styles.item}>
+                  <h4>Média por Agendamento</h4>
+                  <p>{formatCurrency(reportData.summary.averagePerAppointment)}</p>
+                </div>
+                <div className={styles.item}>
+                  <h4>Agendamentos Realizados</h4>
+                  <p>{reportData.summary.completedAppointments}</p>
+                </div>
               </div>
-              <div className={styles.item}>
-                <h4>Média por Agendamento</h4>
-                <p>R$ 155,00</p>
-              </div>
-              <div className={styles.item}>
-                <h4>Agendamentos Realizados</h4>
-                <p>100</p>
-              </div>
-            </div>
-            <TableContainer component={Paper}>
-              <Table sx={{ minWidth: 650 }} aria-label="tabela de faturamento">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Data</TableCell>
-                    <TableCell>Cliente</TableCell>
-                    <TableCell>Serviço</TableCell>
-                    <TableCell>Valor</TableCell>
-                    <TableCell>Status</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {rows.map((row) => (
-                    <TableRow key={row.data}>
-                      <TableCell>{row.data}</TableCell>
-                      <TableCell>{row.cliente}</TableCell>
-                      <TableCell>{row.servico}</TableCell>
-                      <TableCell>{row.valor}</TableCell>
-                      <TableCell>{row.status}</TableCell>
+              <TableContainer component={Paper} sx={{ mt: 3, mb: 2 }}>
+                <Table sx={{ minWidth: 650 }} aria-label="tabela de faturamento">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Data</TableCell>
+                      <TableCell>Cliente</TableCell>
+                      <TableCell>Serviço</TableCell>
+                      <TableCell>Valor</TableCell>
+                      <TableCell>Status</TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-            <Button variant="contained">Exportar</Button>
-          </div>
+                  </TableHead>
+                  <TableBody>
+                    {reportData.details.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell>{formatDate(row.date)}</TableCell>
+                        <TableCell>{row.clientName}</TableCell>
+                        <TableCell>{row.serviceName}</TableCell>
+                        <TableCell>{formatCurrency(row.value)}</TableCell>
+                        <TableCell>{row.status}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            
+              <Button 
+                variant="contained" 
+                onClick={handleExportPdf} 
+                disabled={isExporting} 
+              >
+                {isExporting ? <CircularProgress size={24} color="inherit" /> : 'Exportar PDF'}
+              </Button>
+            </div>
+          )}
         </TabPanel>
-        {/* <TabPanel value="2">Item Two</TabPanel> */}
       </TabContext>
     </main>
   );
