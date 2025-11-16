@@ -17,6 +17,7 @@ const clienteRoutes = require('./routes/clienteRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const reportRoutes = require('./routes/reportRoutes'); 
 const registerRoutes = require('./routes/registerRoutes');
+const desempenhoRoutes = require('./routes/desempenhoRoutes');
 const horariosRoutes = require('./routes/horariosRoutes');
 
 
@@ -30,10 +31,9 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/reports', reportRoutes); 
 app.use('/api', registerRoutes);
 app.use('/api/horarios', horariosRoutes);
-console.log('Report Routes:', reportRoutes);
-console.log('Report Controller:', require('./controllers/reportController'));
+app.use('/api/admin/desempenho', desempenhoRoutes);
 
 const PORT = process.env.PORT || 7208;
 app.listen(PORT, () => {
-  console.log(`✅ Servidor rodando na porta ${PORT}`);
+  console.log(` Servidor rodando na porta ${PORT}`);
 });

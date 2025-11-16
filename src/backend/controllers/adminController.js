@@ -3,18 +3,22 @@ const dayjs = require('dayjs');
 require('dayjs/locale/pt-br');
 dayjs.locale('pt-br');
 
+// --- Funções de Admin (Com filtro de Pagamento e Agendamento unificados) ---
+
 exports.getAgendamentos = async (req, res) => {
-  const { search, date, service, status } = req.query;
+  // Adicionado 'paymentStatus' (para o filtro de pagamento no front-end)
+  const { search, date, service, status, paymentStatus } = req.query;
   
   let query = `
     SELECT 
       a.id, 
-      a.nome_cliente, 
+      a.nome_cliente AS cliente, 
       s.name AS servico,
-      TO_CHAR(a.data_hora, 'DD/MM/YYYY') as data,
-      TO_CHAR(a.data_hora, 'HH24:MI') as hora,
-      a.status,
-      a.pagamento
+      s.min_price AS valor, -- USANDO min_price DO SERVIÇO COMO VALOR PAGO ESTIMADO
+      TO_CHAR(a.data_hora, 'DD/MM/YYYY') as dataPagamento,
+      a.data_hora,
+      a.status AS statusAgendamento, -- Status do agendamento (pendente, concluido)
+      a.pagamento AS status         -- Status do pagamento (pago, pendente)
     FROM 
       agendamentos AS a
     LEFT JOIN 
@@ -34,22 +38,39 @@ exports.getAgendamentos = async (req, res) => {
     values.push(date); 
     paramIndex++;
   }
-  if (service) { 
+  if (service && service !== '0') { 
     query += ` AND a.servico::int = $${paramIndex}`;
     values.push(service);
     paramIndex++;
   }
-  if (status) {
-    query += ` AND a.status = $${paramIndex}`;
+  
+  // Filtro de Status do Agendamento (original)
+  if (status && status !== '0') {
+    query += ` AND a.status ILIKE $${paramIndex}`;
     values.push(status);
     paramIndex++;
   }
+  
+  // NOVO: Filtro de Status de Pagamento (usado na tela de Pagamentos)
+  if (paymentStatus && paymentStatus !== 'all') {
+    query += ` AND a.pagamento ILIKE $${paramIndex}`;
+    values.push(paymentStatus);
+    paramIndex++;
+  }
+
 
   query += ` ORDER BY a.data_hora DESC;`;
 
   try {
     const result = await db.query(query, values);
-    res.status(200).json(result.rows);
+    
+    // Mapeamento final para garantir que o valor seja float e formatar as chaves para o front-end
+    const formattedRows = result.rows.map(row => ({
+        ...row,
+        valor: parseFloat(row.valor || 0), 
+    }));
+
+    res.status(200).json(formattedRows);
   } catch (err) {
     console.error('Erro ao buscar agendamentos com filtros:', err);
     res.status(500).json({ message: 'Erro interno no servidor.' });

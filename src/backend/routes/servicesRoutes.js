@@ -4,5 +4,4 @@ const servicesController = require('../controllers/servicesController');
 
 router.get('/', servicesController.getAllServices); 
 
-
 module.exports = router;

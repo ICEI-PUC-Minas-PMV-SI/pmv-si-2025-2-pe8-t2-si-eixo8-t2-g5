@@ -3,88 +3,149 @@ const dayjs = require('dayjs');
 require('dayjs/locale/pt-br');
 dayjs.locale('pt-br');
 
-// --- Funções de Admin (As suas funções atuais) ---
+const _getAvailableSlots = async (date, serviceId) => {
+    
+    const configResult = await db.query('SELECT hora_inicio, hora_fim FROM horarios_configuracao WHERE ativo = true');
+    const configRows = configResult.rows;
 
-exports.getAgendamentos = async (req, res) => {
-  const { search, date, service, status } = req.query;
-  
-  let query = `
-    SELECT 
-      a.id, 
-      a.nome_cliente, 
-      s.name AS servico,
-      TO_CHAR(a.data_hora, 'DD/MM/YYYY') as data,
-      TO_CHAR(a.data_hora, 'HH24:MI') as hora,
-      a.status,
-      a.pagamento
-    FROM 
-      agendamentos AS a
-    LEFT JOIN 
-      services AS s ON a.servico::int = s.id
-    WHERE 1=1 
-  `;
-  const values = [];
-  let paramIndex = 1;
-
-  if (search) {
-    query += ` AND (a.nome_cliente ILIKE $${paramIndex} OR s.name ILIKE $${paramIndex})`; 
-    values.push(`%${search}%`);
-    paramIndex++;
-  }
-  if (date) {
-    query += ` AND DATE(a.data_hora) = $${paramIndex}`;
-    values.push(date); 
-    paramIndex++;
-  }
-  if (service) { 
-    query += ` AND a.servico::int = $${paramIndex}`;
-    values.push(service);
-    paramIndex++;
-  }
-  if (status) {
-    query += ` AND a.status = $${paramIndex}`;
-    values.push(status);
-    paramIndex++;
-  }
-
-  query += ` ORDER BY a.data_hora DESC;`;
-
-  try {
-    const result = await db.query(query, values);
-    res.status(200).json(result.rows);
-  } catch (err) {
-    console.error('Erro ao buscar agendamentos com filtros:', err);
-    res.status(500).json({ message: 'Erro interno no servidor.' });
-  }
-};
-
-exports.updateStatusAgendamento = async (req, res) => {
-  const { id } = req.params;
-  const { status } = req.body;
-
-  if (!status) {
-    return res.status(400).json({ message: 'O novo status é obrigatório.' });
-  }
-
-  try {
-    const query = `
-      UPDATE agendamentos 
-      SET status = $1 
-      WHERE id = $2
-      RETURNING *;
+    if (configRows.length === 0) {
+        return [];
+    }
+    
+    
+    const queryBusy = `
+        SELECT 
+            TO_CHAR(data_hora, 'HH24:MI') AS hora_ocupada 
+        FROM 
+            agendamentos 
+        WHERE 
+            DATE(data_hora) = $1 AND 
+            status IN ('Pendente', 'Confirmado');
     `;
-    const result = await db.query(query, [status, id]);
+    const busyResult = await db.query(queryBusy, [date]);
+    const busySlots = busyResult.rows.map(row => row.hora_ocupada);
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'Agendamento não encontrado.' });
+    const durationResult = await db.query('SELECT duration_minutes FROM services WHERE id = $1', [serviceId]);
+    const durationMinutes = durationResult.rows[0]?.duration_minutes || 60;
+    
+    
+    const allSlots = [];
+    for (let hour = 8; hour < 22; hour++) { 
+        allSlots.push(dayjs().hour(hour).minute(0).format('HH:mm'));
     }
 
-    res.status(200).json({ message: 'Status atualizado com sucesso!', agendamento: result.rows[0] });
+
+    const availableSlots = allSlots.filter(slotStart => {
+        const slotStartTime = dayjs(`${date} ${slotStart}`);
+        const slotEndTime = slotStartTime.add(durationMinutes, 'minute');
+        
+        
+        const isWorkingTime = configRows.some(config => {
+            const inicio = dayjs(`${date} ${config.hora_inicio}`); 
+            const fim = dayjs(`${date} ${config.hora_fim}`);     
+            
+            return slotStartTime.isAfter(inicio.subtract(1, 'minute')) && slotEndTime.isBefore(fim.add(1, 'minute'));
+        });
+
+        if (!isWorkingTime) {
+            return false;
+        }
+
+        
+        const isBusy = busySlots.some(busyTime => {
+            const busySlot = dayjs(`${date} ${busyTime}`);
+            const busyEnd = busySlot.add(60, 'minute'); 
+
+            return (slotStartTime.isBefore(busyEnd) && slotEndTime.isAfter(busySlot));
+        });
+
+        return !isBusy;
+    });
+
+    return availableSlots;
+};
+
+
+exports.getAgendamentos = async (req, res) => {
+    const { search, date, service, status } = req.query;
+    
+    let query = `
+      SELECT 
+        a.id, 
+        a.nome_cliente, 
+        s.name AS servico,
+        TO_CHAR(a.data_hora, 'DD/MM/YYYY') as data,
+        TO_CHAR(a.data_hora, 'HH24:MI') as hora,
+        a.status,
+        a.pagamento
+      FROM 
+        agendamentos AS a
+      LEFT JOIN 
+        services AS s ON a.servico::int = s.id
+      WHERE 1=1 
+    `;
+    const values = [];
+    let paramIndex = 1;
   
-  } catch (err) {
-    console.error('Erro ao atualizar status:', err);
-    res.status(500).json({ message: 'Erro interno no servidor.' });
-  }
+    if (search) {
+      query += ` AND (a.nome_cliente ILIKE $${paramIndex} OR s.name ILIKE $${paramIndex})`; 
+      values.push(`%${search}%`);
+      paramIndex++;
+    }
+    if (date) {
+      query += ` AND DATE(a.data_hora) = $${paramIndex}`;
+      values.push(date); 
+      paramIndex++;
+    }
+    if (service) { 
+      query += ` AND a.servico::int = $${paramIndex}`;
+      values.push(service);
+      paramIndex++;
+    }
+    if (status) {
+      query += ` AND a.status = $${paramIndex}`;
+      values.push(status);
+      paramIndex++;
+    }
+  
+    query += ` ORDER BY a.data_hora DESC;`;
+  
+    try {
+      const result = await db.query(query, values);
+      res.status(200).json(result.rows);
+    } catch (err) {
+      console.error('Erro ao buscar agendamentos com filtros:', err);
+      res.status(500).json({ message: 'Erro interno no servidor.' });
+    }
+  };
+  
+exports.updateStatusAgendamento = async (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status) {
+        return res.status(400).json({ message: 'O novo status é obrigatório.' });
+    }
+
+    try {
+        const query = `
+        UPDATE agendamentos 
+        SET status = $1 
+        WHERE id = $2
+        RETURNING *;
+        `;
+        const result = await db.query(query, [status, id]);
+
+        if (result.rows.length === 0) {
+        return res.status(404).json({ message: 'Agendamento não encontrado.' });
+        }
+
+        res.status(200).json({ message: 'Status atualizado com sucesso!', agendamento: result.rows[0] });
+    
+    } catch (err) {
+        console.error('Erro ao atualizar status:', err);
+        res.status(500).json({ message: 'Erro interno no servidor.' });
+    }
 };
 
 exports.updatePagamentoAgendamento = async (req, res) => {
@@ -111,194 +172,208 @@ exports.updatePagamentoAgendamento = async (req, res) => {
 };
 
 exports.deleteAgendamento = async (req, res) => {
-  const { id } = req.params;
+    const { id } = req.params;
 
-  try {
-    const query = "DELETE FROM agendamentos WHERE id = $1 RETURNING *;";
-    const result = await db.query(query, [id]);
+    try {
+        const query = "DELETE FROM agendamentos WHERE id = $1 RETURNING *;";
+        const result = await db.query(query, [id]);
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'Agendamento não encontrado.' });
+        if (result.rows.length === 0) {
+        return res.status(404).json({ message: 'Agendamento não encontrado.' });
+        }
+
+        res.status(200).json({ message: 'Agendamento deletado com sucesso!' });
+
+    } catch (err) {
+        console.error('Erro ao deletar agendamento:', err);
+        res.status(500).json({ message: 'Erro interno no servidor.' });
     }
-
-    res.status(200).json({ message: 'Agendamento deletado com sucesso!' });
-
-  } catch (err) {
-    console.error('Erro ao deletar agendamento:', err);
-    res.status(500).json({ message: 'Erro interno no servidor.' });
-  }
 };
 
 exports.getHorariosConfig = async (req, res) => {
-  try {
-    const result = await db.query('SELECT periodo, hora_inicio, hora_fim FROM horarios_configuracao WHERE ativo = true');
-    
-    const config = {};
-    result.rows.forEach(row => {
-      config[row.periodo] = {
-        inicio: dayjs(row.hora_inicio, 'HH:mm:ss').format('HH:mm'), 
-        fim: dayjs(row.hora_fim, 'HH:mm:ss').format('HH:mm')
-      };
-    });
+    try {
+        const result = await db.query('SELECT periodo, hora_inicio, hora_fim FROM horarios_configuracao WHERE ativo = true');
+        
+        const config = {};
+        result.rows.forEach(row => {
+        config[row.periodo] = {
+            inicio: dayjs(row.hora_inicio, 'HH:mm:ss').format('HH:mm'), 
+            fim: dayjs(row.hora_fim, 'HH:mm:ss').format('HH:mm')
+        };
+        });
 
-    res.status(200).json(config); 
-  } catch (error) {
-    res.status(500).json({ message: 'Erro ao buscar configurações.', error: error.message });
-  }
+        res.status(200).json(config); 
+    } catch (error) {
+        res.status(500).json({ message: 'Erro ao buscar configurações.', error: error.message });
+    }
 };
 
 exports.updateHorariosConfig = async (req, res) => {
-  try {
-    const { periodo, inicio, fim } = req.body; 
+    try {
+        const { periodo, inicio, fim } = req.body; 
 
-    if (!periodo || !inicio || !fim) {
-      return res.status(400).json({ message: 'Dados incompletos (periodo, inicio, fim).' });
+        if (!periodo || !inicio || !fim) {
+        return res.status(400).json({ message: 'Dados incompletos (periodo, inicio, fim).' });
+        }
+
+        const query = 'UPDATE horarios_configuracao SET hora_inicio = $1, hora_fim = $2 WHERE periodo = $3 RETURNING *';
+        const result = await db.query(query, [inicio, fim, periodo]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Período não encontrado.' });
+        }
+
+        res.status(200).json({ 
+            message: 'Horário atualizado!', 
+            config: {
+                periodo: result.rows[0].periodo,
+                inicio: dayjs(result.rows[0].hora_inicio, 'HH:mm:ss').format('HH:mm'),
+                fim: dayjs(result.rows[0].hora_fim, 'HH:mm:ss').format('HH:mm')
+            } 
+        });
+
+    } catch (error) {
+        res.status(500).json({ message: 'Erro ao salvar configuração.', error: error.message });
     }
-
-    const query = 'UPDATE horarios_configuracao SET hora_inicio = $1, hora_fim = $2 WHERE periodo = $3 RETURNING *';
-    const result = await db.query(query, [inicio, fim, periodo]);
-
-    if (result.rows.length === 0) {
-        return res.status(404).json({ message: 'Período não encontrado.' });
-    }
-
-    res.status(200).json({ 
-        message: 'Horário atualizado!', 
-        config: {
-            periodo: result.rows[0].periodo,
-            inicio: dayjs(result.rows[0].hora_inicio, 'HH:mm:ss').format('HH:mm'),
-            fim: dayjs(result.rows[0].hora_fim, 'HH:mm:ss').format('HH:mm')
-        } 
-    });
-
-  } catch (error) {
-    res.status(500).json({ message: 'Erro ao salvar configuração.', error: error.message });
-  }
 };
 
 exports.getAgendaSemana = async (req, res) => {
-  try {
-    const { date, serviceId, status, search } = req.query;
+    try {
+        const { date, serviceId, status, search } = req.query;
 
-    if (!date) {
-      return res.status(400).json({ message: 'A data é obrigatória.' });
-    }
+        if (!date) {
+        return res.status(400).json({ message: 'A data é obrigatória.' });
+        }
 
-    const getWeekRange = (date) => {
-      const startOfWeek = dayjs(date).startOf('day').day(1); 
-      const endOfWeek = dayjs(date).startOf('day').day(6); 
-      
-      return {
-        start: startOfWeek.format('YYYY-MM-DD 00:00:00'),
-        end: endOfWeek.format('YYYY-MM-DD 23:59:59'),
-      };
-    };
-
-    const week = getWeekRange(date);
-
-    let params = [week.start, week.end];
-    let query = `
-      SELECT 
-        a.id, 
-        a.data_hora, 
-        a.nome_cliente, 
-        a.status,
-        s.name AS serviceName
-      FROM 
-        agendamentos a
-      LEFT JOIN 
-        services s ON a.servico::int = s.id
-      WHERE 
-        a.data_hora >= $1 AND a.data_hora <= $2
-    `;
-    let paramIndex = 3;
-
-    if (serviceId && serviceId !== '0') {
-      query += ` AND a.servico::int = $${paramIndex++}`;
-      params.push(serviceId);
-    }
-    if (status && status !== '0') {
-      const statusMap = { '1': 'pendente', '2': 'confirmado', '3': 'concluido' }; 
-      if(statusMap[status]) {
-        query += ` AND a.status = $${paramIndex++}`;
-        params.push(statusMap[status]);
-      }
-    }
-    if (search && search !== '') {
-      query += ` AND a.nome_cliente ILIKE $${paramIndex++}`;
-      params.push(`%${search}%`);
-    }
-
-    const agendamentosResult = await db.query(query, params);
-    const agendamentos = agendamentosResult.rows;
-
-    const configResult = await db.query('SELECT hora_inicio, hora_fim FROM horarios_configuracao WHERE ativo = true');
-    const configRows = configResult.rows;
-    
-    const timeSlots = [];
-    for (let hour = 8; hour < 22; hour++) { 
-      timeSlots.push(dayjs().hour(hour).minute(0).format('HH:mm'));
-    }
-
-    const grid = [];
-    
-    for (const slotStart of timeSlots) { 
-      const slotRow = [];
-      const slotStartTime = parseInt(slotStart.split(':')[0]); 
-
-      for (let dayIndex = 1; dayIndex <= 6; dayIndex++) { 
-        const currentDay = dayjs(date).day(dayIndex);
+        const getWeekRange = (date) => {
+        const startOfWeek = dayjs(date).startOf('day').day(1); 
+        const endOfWeek = dayjs(date).startOf('day').day(6); 
         
-        const appointment = agendamentos.find(app => {
-          const appDate = dayjs(app.data_hora);
-          return appDate.isSame(currentDay, 'day') && appDate.hour() === slotStartTime;
+        return {
+            start: startOfWeek.format('YYYY-MM-DD 00:00:00'),
+            end: endOfWeek.format('YYYY-MM-DD 23:59:59'),
+        };
+        };
+
+        const week = getWeekRange(date);
+
+        let params = [week.start, week.end];
+        let query = `
+        SELECT 
+            a.id, 
+            a.data_hora, 
+            a.nome_cliente, 
+            a.status,
+            s.name AS serviceName
+        FROM 
+            agendamentos a
+        LEFT JOIN 
+            services s ON a.servico::int = s.id
+        WHERE 
+            a.data_hora >= $1 AND a.data_hora <= $2
+        `;
+        let paramIndex = 3;
+
+        if (serviceId && serviceId !== '0') {
+        query += ` AND a.servico::int = $${paramIndex++}`;
+        params.push(serviceId);
+        }
+        if (status && status !== '0') {
+        const statusMap = { '1': 'pendente', '2': 'confirmado', '3': 'concluido' }; 
+        if(statusMap[status]) {
+            query += ` AND a.status = $${paramIndex++}`;
+            params.push(statusMap[status]);
+        }
+        }
+        if (search && search !== '') {
+        query += ` AND a.nome_cliente ILIKE $${paramIndex++}`;
+        params.push(`%${search}%`);
+        }
+
+        const agendamentosResult = await db.query(query, params);
+        const agendamentos = agendamentosResult.rows;
+
+        const configResult = await db.query('SELECT hora_inicio, hora_fim FROM horarios_configuracao WHERE ativo = true');
+        const configRows = configResult.rows;
+        
+        const timeSlots = [];
+        for (let hour = 8; hour < 22; hour++) { 
+        timeSlots.push(dayjs().hour(hour).minute(0).format('HH:mm'));
+        }
+
+        const grid = [];
+        
+        for (const slotStart of timeSlots) { 
+        const slotRow = [];
+        const slotStartTime = parseInt(slotStart.split(':')[0]); 
+
+        for (let dayIndex = 1; dayIndex <= 6; dayIndex++) { 
+            const currentDay = dayjs(date).day(dayIndex);
+            
+            const appointment = agendamentos.find(app => {
+            const appDate = dayjs(app.data_hora);
+            return appDate.isSame(currentDay, 'day') && appDate.hour() === slotStartTime;
+            });
+
+            if (appointment) {
+            slotRow.push({
+                status: 'Ocupado',
+                appId: appointment.id,
+                cliente: appointment.nome_cliente,
+                servico: appointment.serviceName,
+                statusApp: appointment.status,
+            });
+            } else {
+            const isWorkingTime = configRows.some(config => {
+                const inicio = parseInt(config.hora_inicio.split(':')[0]); 
+                const fim = parseInt(config.hora_fim.split(':')[0]);     
+                return slotStartTime >= inicio && slotStartTime < fim;
+            });
+
+            if (isWorkingTime) {
+                slotRow.push({ status: 'Disponível' });
+            } else {
+                slotRow.push({ status: 'Bloqueado' }); 
+            }
+            }
+        }
+        grid.push(slotRow);
+        }
+
+        const displayTimeSlots = timeSlots.map(slot => {
+        const start = slot;
+        const end = dayjs().hour(parseInt(slot.split(':')[0]) + 1).minute(0).format('HH:mm');
+        return `${start} - ${end}`;
         });
 
-        if (appointment) {
-          slotRow.push({
-            status: 'Ocupado',
-            appId: appointment.id,
-            cliente: appointment.nome_cliente,
-            servico: appointment.serviceName,
-            statusApp: appointment.status,
-          });
-        } else {
-          const isWorkingTime = configRows.some(config => {
-             const inicio = parseInt(config.hora_inicio.split(':')[0]); 
-             const fim = parseInt(config.hora_fim.split(':')[0]);     
-             return slotStartTime >= inicio && slotStartTime < fim;
-          });
+        res.status(200).json({ timeSlots: displayTimeSlots, grid });
 
-          if (isWorkingTime) {
-            slotRow.push({ status: 'Disponível' });
-          } else {
-            slotRow.push({ status: 'Bloqueado' }); 
-          }
-        }
-      }
-      grid.push(slotRow);
+    } catch (error) {
+        console.error('Erro ao buscar agenda da semana:', error);
+        res.status(500).json({ message: 'Erro ao buscar agenda.', error: error.message });
     }
-
-    const displayTimeSlots = timeSlots.map(slot => {
-      const start = slot;
-      const end = dayjs().hour(parseInt(slot.split(':')[0]) + 1).minute(0).format('HH:mm');
-      return `${start} - ${end}`;
-    });
-
-    res.status(200).json({ timeSlots: displayTimeSlots, grid });
-
-  } catch (error) {
-    console.error('Erro ao buscar agenda da semana:', error);
-    res.status(500).json({ message: 'Erro ao buscar agenda.', error: error.message });
-  }
 };
 
-// --- FUNÇÃO DE CRIAÇÃO DE AGENDAMENTO PÚBLICO (Corrigindo o TypeError) ---
 
-/**
- * Rota POST /api/agendamento
- * Cria um novo agendamento no banco de dados.
- */
+exports.getHorariosDisponiveis = async (req, res) => {
+    const { date, serviceId } = req.query;
+
+    if (!date || !serviceId) {
+        return res.status(400).json({ message: 'A data e o ID do serviço são obrigatórios.' });
+    }
+
+    try {
+        const availableSlots = await _getAvailableSlots(date, parseInt(serviceId, 10));
+        
+        return res.status(200).json(availableSlots);
+
+    } catch (error) {
+        console.error('Erro ao buscar horários disponíveis:', error);
+        res.status(500).json({ message: 'Erro interno ao tentar buscar horários.' });
+    }
+};
+
+
 exports.criarAgendamento = async (req, res) => {
     const { nome_cliente, whatsapp, servico_id, data_hora } = req.body;
 
