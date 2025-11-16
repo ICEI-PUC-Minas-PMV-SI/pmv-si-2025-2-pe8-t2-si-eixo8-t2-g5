@@ -10,6 +10,23 @@ CREATE TABLE IF NOT EXISTS usuarios (
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios (email);
 
+INSERT INTO usuarios (
+    nome, 
+    email, 
+    senha, 
+    tipo, 
+    plano_servicos, 
+    created_at
+) VALUES (
+    'Admin', 
+    'admin@email.com', 
+    '$2a$12$TDIKjJh77Pxb/ESazISa.eMEiA8T75RG1kj/cXy6mhA26JFzXl9JS',
+    'Avulso', 
+    NULL,
+    CURRENT_TIMESTAMP
+)
+ON CONFLICT (email) DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS services (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) UNIQUE NOT NULL,
