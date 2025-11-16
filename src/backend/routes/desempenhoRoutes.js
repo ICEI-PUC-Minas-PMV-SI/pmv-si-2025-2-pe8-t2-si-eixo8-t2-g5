@@ -6,5 +6,6 @@ const desempenhoController = require('../controllers/desempenhoController');
 const { autenticarToken } = require('../middlewares/authMiddleware');
 
 router.get('/servicos', autenticarToken, desempenhoController.getDesempenhoServicos);
+router.get('/trends', autenticarToken, desempenhoController.getServiceTrends);
 
 module.exports = router;

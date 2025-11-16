@@ -85,6 +85,7 @@ export default function AdminDashboardPage() {
   }
 
   const totalAgendamentos = stats.agendamentosChart.data.reduce((sum, val) => sum + val, 0);
+
   const agendamentoLabels = stats.agendamentosChart.labels.map(formatMonthLabel);
   const faturamentoLabels = stats.faturamentoChart.labels.map(formatMonthLabel);
 
@@ -141,8 +142,8 @@ export default function AdminDashboardPage() {
             <p>Últimos 6 meses</p>
             <LineChart
               xAxis={[{
-                data: stats.faturamentoChart.labels.map((_, index) => index + 1),
-                scaleType: 'linear'
+                data: faturamentoLabels,
+                scaleType: 'band'
               }]}
               series={[
                 {
@@ -153,7 +154,6 @@ export default function AdminDashboardPage() {
                 },
               ]}
               height={260}
-              margin={{ left: 70 }}
             />
           </div>
         </Grid>
@@ -162,7 +162,7 @@ export default function AdminDashboardPage() {
         <h4>Ações Rápidas</h4>
         <div className={styles.acoes_rapidas_list}>
           <Button variant="contained">
-            <Link href='/admin/clientes?create_new=true'>
+            <Link href='/admin/clientes'>
               Cadastrar Cliente
             </Link>
           </Button>
