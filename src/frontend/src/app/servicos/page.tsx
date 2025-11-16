@@ -1,14 +1,20 @@
+'use client';
+
 import styles from './page.module.scss';
 import Button from '@mui/material/Button';
-import ContentCutIcon from '@mui/icons-material/ContentCut';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import ContentCutIcon from '@mui/icons-material/ContentCut';
 import BrushIcon from '@mui/icons-material/Brush';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
+import { useState, useEffect, useCallback } from 'react';
+import CircularProgress from '@mui/material/CircularProgress';
+import Box from '@mui/material/Box';
 
 interface Service {
+  id: number;
   name: string;
   min_price: number;
-  time: number;
+  duration_minutes: number; 
 }
 
 interface Category {
@@ -17,77 +23,16 @@ interface Category {
   services: Service[];
 }
 
+const getCategoryIcon = (serviceName: string): 'ContentCutIcon' | 'BrushIcon' | 'MenuBookIcon' => {
+  if (serviceName.toLowerCase().includes('corte') || serviceName.toLowerCase().includes('coloração') || serviceName.toLowerCase().includes('mechas')) return 'ContentCutIcon';
+  if (serviceName.toLowerCase().includes('maquiagem')) return 'BrushIcon';
+  if (serviceName.toLowerCase().includes('manicure') || serviceName.toLowerCase().includes('pedicure') || serviceName.toLowerCase().includes('unhas')) return 'MenuBookIcon';
+  return 'ContentCutIcon';
+};
+
 export default function ServicesPage() {
-  const categories: Category[] = [
-    {
-      label: "Cabelo",
-      icon: "ContentCutIcon",
-      services: [
-        {
-          name: "Corte de Cabelo",
-          min_price: 150,
-          time: 60,
-        },
-        {
-          name: "Coloração",
-          min_price: 200,
-          time: 120,
-        },
-        {
-          name: "Mechas",
-          min_price: 180,
-          time: 150,
-        },
-        {
-          name: "Tratamentos Capilares",
-          min_price: 120,
-          time: 45,
-        },
-      ],
-    },
-    {
-      label: "Mais Serviços",
-      icon: "BrushIcon",
-      services: [
-        {
-          name: "Maquiagem Social",
-          min_price: 100,
-          time: 50,
-        },
-        {
-          name: "Maquiagem para Festas",
-          min_price: 150,
-          time: 75,
-        },
-        {
-          name: "Maquiagem para Noivas",
-          min_price: 200,
-          time: 90,
-        },
-      ],
-    },
-    {
-      label: "Mais Serviços",
-      icon: "MenuBookIcon",
-      services: [
-        {
-          name: "Manicure",
-          min_price: 50,
-          time: 45,
-        },
-        {
-          name: "Pedicure",
-          min_price: 60,
-          time: 60,
-        },
-        {
-          name: "Alongamento de Unhas",
-          min_price: 80,
-          time: 90,
-        },
-      ],
-    },
-  ];
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const loadIcon = (category: 'ContentCutIcon' | 'BrushIcon' | 'MenuBookIcon') => {
     switch (category) {
@@ -97,7 +42,54 @@ export default function ServicesPage() {
         return (<BrushIcon />);
       case 'MenuBookIcon':
         return (<MenuBookIcon />);
+      default:
+        return null;
     }
+  };
+
+  const fetchServices = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/services'); 
+      if (!response.ok) {
+        throw new Error('Falha ao carregar serviços.');
+      }
+      
+      const allServices: Service[] = await response.json();
+
+      const groupedServices = allServices.reduce((acc, service) => {
+        const icon = getCategoryIcon(service.name);
+        const label = icon === 'ContentCutIcon' ? 'Cabelo' : 'Outros Serviços';
+
+        let category = acc.find(c => c.label === label);
+        if (!category) {
+          category = { label, icon, services: [] };
+          acc.push(category);
+        }
+        category.services.push(service);
+        return acc;
+      }, [] as Category[]);
+      
+      setCategories(groupedServices);
+
+    } catch (error) {
+      console.error('Erro ao buscar serviços:', error);
+      setCategories([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchServices();
+  }, [fetchServices]);
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
   }
 
   return (
@@ -116,7 +108,7 @@ export default function ServicesPage() {
                 <div className={styles.service_info}>
                   <h5>{service.name}</h5>
                   <p>
-                    A partir de R${service.min_price} • {service.time} min
+                    A partir de R${service.min_price} • {service.duration_minutes} min
                   </p>
                 </div>
                 <Button variant="contained">
@@ -127,6 +119,9 @@ export default function ServicesPage() {
             ))}
           </div>
         ))}
+        {categories.length === 0 && !isLoading && (
+            <p>Nenhum serviço disponível no momento.</p>
+        )}
       </div>
     </main>
   );

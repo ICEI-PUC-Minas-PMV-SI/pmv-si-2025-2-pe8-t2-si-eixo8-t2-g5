@@ -28,32 +28,22 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import SearchIcon from '@mui/icons-material/Search';
 import InputAdornment from '@mui/material/InputAdornment';
 
+const API_BASE_URL = 'http://localhost:7208/api';
+
 interface Agendamento {
   id: number;
-  cliente: string; 
+  cliente: string;
   servico: string;
   data: string;
   hora: string;
-  status: 'Pendente' | 'Confirmado' | 'Concluído' | 'Cancelado';
-  pagamento: 'Pendente' | 'Pago';
+  status: string;
+  pagamento: string;
 }
 
 interface Servico {
   id: number;
   name: string;
 }
-
-const statusColorMap: Record<Agendamento['status'], "warning" | "success" | "info" | "error"> = {
-  'Pendente': 'warning',
-  'Confirmado': 'info',
-  'Concluído': 'success',
-  'Cancelado': 'error',
-};
-
-const pagamentoColorMap: Record<Agendamento['pagamento'], "warning" | "success"> = {
-  'Pendente': 'warning',
-  'Pago': 'success',
-};
 
 export default function AdminAgendamentoPage() {
   const router = useRouter();
@@ -69,6 +59,11 @@ export default function AdminAgendamentoPage() {
 
   const [servicesList, setServicesList] = useState<Servico[]>([]);
 
+  const getToken = () => {
+    if (typeof window !== 'undefined') return localStorage.getItem('token');
+    return null;
+  };
+
   const fetchAgendamentos = useCallback(async (token: string) => {
     setLoading(true);
     setError(null);
@@ -79,110 +74,110 @@ export default function AdminAgendamentoPage() {
       if (service) params.append('service', service);
       if (status) params.append('status', status);
 
-      const res = await fetch(`http://localhost:7208/api/admin/agendamentos?${params.toString()}`, {
+      const res = await fetch(`${API_BASE_URL}/admin/agendamentos?${params.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      if (res.status === 401) {
-        throw new Error('Acesso não autorizado. Faça login novamente.');
-      }
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || 'Falha ao carregar agendamentos.');
-      }
-      
+      if (res.status === 401) throw new Error('Acesso não autorizado. Faça login novamente.');
+      if (!res.ok) throw new Error(`Erro na API (${res.status})`);
+
       const data = await res.json();
-      setAgendamentos(data.map((item: any) => ({ ...item, cliente: item.nome_cliente })));
+
+      const mapped = data.map((item: any) => {
+        const [dataPart, horaPart] = item.data_hora.split(' ');
+        return {
+          id: item.id,
+          cliente: item.cliente,
+          servico: item.servico,
+          data: dataPart,
+          hora: horaPart,
+          status: item.statusagendamento,
+          pagamento: item.status
+        };
+      });
+
+      setAgendamentos(mapped);
 
     } catch (err: any) {
       setError(err.message);
-      if (err.message.includes('autorizado')) {
-        router.push('/login');
-      }
+      if (err.message.includes('autorizado')) router.push('/login');
     } finally {
       setLoading(false);
     }
-  }, [search, date, service, status, router]); 
+  }, [search, date, service, status, router]);
 
   useEffect(() => {
     const fetchServices = async () => {
-      const token = localStorage.getItem('token');
+      const token = getToken();
       if (!token) return; 
-
       try {
-        const res = await fetch('http://localhost:7208/api/services', {
+        const res = await fetch(`${API_BASE_URL}/services`, {
           headers: { 'Authorization': `Bearer ${token}` } 
         });
-        if (!res.ok) {
-          throw new Error('Falha ao carregar lista de serviços.');
-        }
+        if (!res.ok) throw new Error('Falha ao carregar serviços.');
         const data = await res.json();
         setServicesList(data);
       } catch (err: any) {
-        setError(err.message); 
+        setError(err.message);
       }
     };
     fetchServices();
-  }, []); 
+  }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     if (!token) {
-      setError('Acesso não autorizado. Faça login.');
+      setError('Acesso não autorizado.');
       setLoading(false);
-      router.push('/login'); 
       return;
     }
-
     const handler = setTimeout(() => {
       fetchAgendamentos(token);
-    }, 500); 
-
+    }, 500);
     return () => clearTimeout(handler);
-  }, [fetchAgendamentos, router]);
+  }, [fetchAgendamentos]);
 
   const handleUpdate = async (id: number, type: 'status' | 'pagamento', value: string) => {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     if (!token) return;
 
+    const apiField = type === 'status' ? 'statusagendamento' : 'status';
+
     try {
-      const res = await fetch(`http://localhost:7208/api/admin/agendamentos/${id}/${type}`, {
+      const res = await fetch(`${API_BASE_URL}/admin/agendamentos/${id}/${apiField}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ [type]: value }) 
+        body: JSON.stringify({ [apiField]: value })
       });
 
-      if (!res.ok) throw new Error(`Falha ao atualizar ${type}`);
-      
-      setAgendamentos(prev => 
-        prev.map(ag => ag.id === id ? { ...ag, [type]: value as any } : ag) 
-      );
+      if (!res.ok) throw new Error('Falha ao atualizar');
 
+      setAgendamentos(prev =>
+        prev.map(ag => ag.id === id ? { ...ag, [type]: value } : ag)
+      );
     } catch (err: any) {
       setError(err.message);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (typeof window !== 'undefined' && !window.confirm('Tem certeza que deseja deletar este agendamento?')) {
-      return;
-    }
-    const token = localStorage.getItem('token');
+    if (typeof window !== 'undefined' && !window.confirm('Tem certeza que deseja deletar?')) return;
+
+    const token = getToken();
     if (!token) return;
 
     try {
-      const res = await fetch(`http://localhost:7208/api/admin/agendamentos/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/admin/agendamentos/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
-      if (!res.ok) throw new Error('Falha ao deletar agendamento.');
 
-      setAgendamentos(prev => prev.filter(ag => ag.id !== id)); 
+      if (!res.ok) throw new Error('Erro ao deletar');
 
+      setAgendamentos(prev => prev.filter(ag => ag.id !== id));
     } catch (err: any) {
       setError(err.message);
     }
@@ -192,13 +187,15 @@ export default function AdminAgendamentoPage() {
     <main className={styles.admin_agendamentos}>
       <h2>Agendamentos</h2>
       <p>Visualize e gerencie todos os agendamentos do salão.</p>
+
       <OutlinedInput
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         startAdornment={<InputAdornment position="start"><SearchIcon /></InputAdornment>}
-        placeholder='Buscar por nome do cliente ou serviço'
+        placeholder='Buscar por cliente ou serviço'
         className={styles.search_input}
       />
+
       <div className={styles.filters}>
         <LocalizationProvider dateAdapter={AdapterDayjs}>
           <DatePicker 
@@ -208,6 +205,7 @@ export default function AdminAgendamentoPage() {
             sx={{ bgcolor: '#F7F7F7' }}
           />
         </LocalizationProvider>
+
         <Select 
           value={service} 
           onChange={(e: SelectChangeEvent<string>) => setService(e.target.value)}
@@ -216,11 +214,10 @@ export default function AdminAgendamentoPage() {
         >
           <MenuItem value="">Todos os serviços</MenuItem>
           {servicesList.map((s) => (
-            <MenuItem key={s.id} value={String(s.id)}>
-              {s.name}
-            </MenuItem>
+            <MenuItem key={s.id} value={String(s.id)}>{s.name}</MenuItem>
           ))}
         </Select>
+
         <Select 
           value={status} 
           onChange={(e: SelectChangeEvent<string>) => setStatus(e.target.value)}
@@ -228,10 +225,10 @@ export default function AdminAgendamentoPage() {
           sx={{ bgcolor: '#F7F7F7' }}
         >
           <MenuItem value="">Todos os status</MenuItem>
-          <MenuItem value={'Pendente'}>Pendente</MenuItem>
-          <MenuItem value={'Confirmado'}>Confirmado</MenuItem>
-          <MenuItem value={'Concluído'}>Concluído</MenuItem>
-          <MenuItem value={'Cancelado'}>Cancelado</MenuItem>
+          <MenuItem value="Pendente">Pendente</MenuItem>
+          <MenuItem value="Confirmado">Confirmado</MenuItem>
+          <MenuItem value="Concluído">Concluído</MenuItem>
+          <MenuItem value="Cancelado">Cancelado</MenuItem>
         </Select>
       </div>
 
@@ -252,6 +249,7 @@ export default function AdminAgendamentoPage() {
                 <TableCell>Ações</TableCell>
               </TableRow>
             </TableHead>
+
             <TableBody>
               {agendamentos.map((row) => (
                 <TableRow key={row.id}>
@@ -259,87 +257,55 @@ export default function AdminAgendamentoPage() {
                   <TableCell sx={{ color: '#a66a7b' }}>{row.servico}</TableCell>
                   <TableCell>{row.data}</TableCell>
                   <TableCell>{row.hora}</TableCell>
+
                   <TableCell>
                     <Select
                       value={row.status}
                       onChange={(e) => handleUpdate(row.id, 'status', e.target.value)}
                       size="small"
                       variant="standard"
-                      sx={{ 
-                        '.MuiSelect-select': { 
-                          paddingTop: '0px', 
-                          paddingBottom: '0px',
-                          paddingLeft: '0px',
-                          display: 'flex',
-                          alignItems: 'center'
-                        },
-                        boxShadow: 'none', 
-                        '.MuiOutlinedInput-notchedOutline': { border: 0 },
-                        '&.MuiInput-underline:before': { border: 0 },
-                        '&.MuiInput-underline:after': { border: 0 },
-                      }}
                     >
-                      <MenuItem value="Pendente">
-                        <Chip label="Pendente" color="warning" size="small" />
-                      </MenuItem>
-                      <MenuItem value="Confirmado">
-                        <Chip label="Confirmado" color="info" size="small" />
-                      </MenuItem>
-                        <MenuItem value="Concluído">
-                        <Chip label="Concluído" color="success" size="small" />
-                      </MenuItem>
-                      <MenuItem value="Cancelado">
-                        <Chip label="Cancelado" color="error" size="small" />
-                      </MenuItem>
+                      <MenuItem value="Pendente"><Chip label="Pendente" color="warning" size="small" /></MenuItem>
+                      <MenuItem value="Confirmado"><Chip label="Confirmado" color="info" size="small" /></MenuItem>
+                      <MenuItem value="Concluído"><Chip label="Concluído" color="success" size="small" /></MenuItem>
+                      <MenuItem value="Cancelado"><Chip label="Cancelado" color="error" size="small" /></MenuItem>
                     </Select>
                   </TableCell>
+
                   <TableCell>
-                      <Select
-                        value={row.pagamento}
-                        onChange={(e) => handleUpdate(row.id, 'pagamento', e.target.value)}
-                        size="small"
-                        variant="standard"
-                        sx={{ 
-                          '.MuiSelect-select': { 
-                            paddingTop: '0px', 
-                            paddingBottom: '0px',
-                            paddingLeft: '0px',
-                            display: 'flex',
-                            alignItems: 'center'
-                          },
-                          boxShadow: 'none', 
-                          '.MuiOutlinedInput-notchedOutline': { border: 0 },
-                          '&.MuiInput-underline:before': { border: 0 },
-                          '&.MuiInput-underline:after': { border: 0 },
-                        }}
-                      >
-                        <MenuItem value="Pendente">
-                          <Chip label="Pendente" color="warning" size="small" />
-                        </MenuItem>
-                        <MenuItem value="Pago">
-                          <Chip label="Pago" color="success" size="small" />
-                        </MenuItem>
-                      </Select>
+                    <Select
+                      value={row.pagamento}
+                      onChange={(e) => handleUpdate(row.id, 'pagamento', e.target.value)}
+                      size="small"
+                      variant="standard"
+                    >
+                      <MenuItem value="Pendente"><Chip label="Pendente" color="warning" size="small" /></MenuItem>
+                      <MenuItem value="Pago"><Chip label="Pago" color="success" size="small" /></MenuItem>
+                      <MenuItem value="Reembolsado"><Chip label="Reembolsado" color="error" size="small" /></MenuItem>
+                    </Select>
                   </TableCell>
+
                   <TableCell>
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       <Button 
                         size="small" 
-                        sx={{ color: '#a66a7b', textTransform: 'none', minWidth: 'auto', padding: '0 4px' }}
+                        sx={{ color: '#a66a7b', textTransform: 'none', minWidth: 'auto' }}
                         onClick={() => handleDelete(row.id)}
                       >
                         Excluir
                       </Button>
                     </Box>
                   </TableCell>
+
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+
           {agendamentos.length === 0 && (
-             <Box sx={{ p: 2, textAlign: 'center' }}>
-               Nenhum agendamento encontrado com esses filtros.
-             </Box>
+            <Box sx={{ p: 2, textAlign: 'center' }}>
+              Nenhum agendamento encontrado.
+            </Box>
           )}
         </TableContainer>
       )}
