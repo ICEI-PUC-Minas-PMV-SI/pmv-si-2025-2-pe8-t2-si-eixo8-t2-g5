@@ -33,7 +33,7 @@ export default function LoginPage() {
     try {
       const response = await fetch('http://localhost:7208/api/autenticar', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
@@ -105,6 +105,8 @@ export default function LoginPage() {
           type="submit"
           fullWidth
           sx={{ mt: 2 }}
+          loading={loading}
+          loadingPosition="start"
         >
           {loading ? 'Entrando...' : 'Entrar'}
         </Button>

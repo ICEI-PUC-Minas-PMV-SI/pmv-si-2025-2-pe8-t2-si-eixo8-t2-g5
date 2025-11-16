@@ -1,8 +1,6 @@
 const db = require('../config/db');
 
 exports.getDashboardStats = async (req, res) => {
-  const usuarioId = req.user.id;
-
   try {
     const faturamentoQuery = `
       SELECT SUM(preco) AS total

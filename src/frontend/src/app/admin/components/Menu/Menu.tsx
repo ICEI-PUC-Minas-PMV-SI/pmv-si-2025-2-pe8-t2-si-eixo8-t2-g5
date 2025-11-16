@@ -43,16 +43,6 @@ export default function AdminMenu() {
         </li>
         <li>
           <Button variant="text" className={classNames({
-            [styles.active]: currentPage === 'servicos'
-          })}>
-            <Link href='/'>
-              <ContentCutIcon />
-              Serviços
-            </Link>
-          </Button>
-        </li>
-        <li>
-          <Button variant="text" className={classNames({
             [styles.active]: currentPage === 'agendamentos'
           })}>
             <Link href='/admin/agendamentos'>
