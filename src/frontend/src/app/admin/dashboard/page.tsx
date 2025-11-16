@@ -162,7 +162,7 @@ export default function AdminDashboardPage() {
         <h4>Ações Rápidas</h4>
         <div className={styles.acoes_rapidas_list}>
           <Button variant="contained">
-            <Link href='/admin/clientes'>
+            <Link href='/admin/clientes?create_new=true'>
               Cadastrar Cliente
             </Link>
           </Button>

@@ -29,18 +29,16 @@ import TabContext from '@mui/lab/TabContext';
 import TabList from '@mui/lab/TabList';
 import TabPanel from '@mui/lab/TabPanel';
 import SearchIcon from '@mui/icons-material/Search';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 
-// Interface para os dados do cliente vindos da API
 interface Cliente {
   id: number;
   nome: string;
   tipo: 'Mensalista' | 'Avulso';
-  plano_servicos: number | null; // Serviços mensais (ex: 4, 6)
-  total_servicos: number; // Total calculado
+  plano_servicos: number | null;
+  total_servicos: number;
 }
 
-// Estilo do Modal (para centralizar)
 const modalStyle = {
   position: 'absolute' as 'absolute',
   top: '50%',
@@ -60,13 +58,13 @@ export default function AdminClientesPage() {
   const [tab, setTab] = useState('1');
   const [search, setSearch] = useState('');
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
 
-  // Estados dos dados
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Estados do Modal
   const [openAddModal, setOpenAddModal] = useState(false);
   const [newClient, setNewClient] = useState({
     nome: '',
@@ -78,7 +76,6 @@ export default function AdminClientesPage() {
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
 
-  // Função para buscar clientes
   const fetchClientes = useCallback(async (token: string) => {
     setLoading(true);
     setError(null);
@@ -94,7 +91,7 @@ export default function AdminClientesPage() {
       if (!res.ok) throw new Error('Falha ao buscar clientes.');
 
       const data = await res.json();
-      // Converte o total_servicos (que vem como string do COUNT) para número
+
       setClientes(data.map((c: any) => ({
         ...c,
         total_servicos: parseInt(c.total_servicos, 10)
@@ -108,7 +105,7 @@ export default function AdminClientesPage() {
     }
   }, [search, router]);
 
- 
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -120,10 +117,18 @@ export default function AdminClientesPage() {
 
     const handler = setTimeout(() => {
       fetchClientes(token);
-    }, 500); 
+    }, 500);
 
     return () => clearTimeout(handler);
   }, [search, fetchClientes, router]);
+
+  useEffect(() => {
+    if (searchParams.get('create_new') === 'true') {
+      handleOpenModal();
+
+      router.replace(pathname);
+    }
+  }, [searchParams, router, pathname]);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: string) => {
     setTab(newValue);
@@ -133,11 +138,9 @@ export default function AdminClientesPage() {
   const handleCloseModal = () => {
     setOpenAddModal(false);
     setModalError(null);
-    // Reseta o formulário do modal
     setNewClient({ nome: '', email: '', senha: '', tipo: 'Avulso', plano_servicos: '' });
   };
 
-  // Handler para o formulário do modal
   const handleModalChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }> | SelectChangeEvent) => {
     const { name, value } = e.target;
     setNewClient(prev => ({
@@ -146,44 +149,42 @@ export default function AdminClientesPage() {
     }));
   };
 
-  // Submissão do novo cliente
   const handleSubmitNewClient = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setModalLoading(true);
     setModalError(null);
-    
+
     const token = localStorage.getItem('token');
     if (!token) {
-        setModalError('Autenticação perdida. Faça login novamente.');
-        setModalLoading(false);
-        return;
+      setModalError('Autenticação perdida. Faça login novamente.');
+      setModalLoading(false);
+      return;
     }
 
     try {
-        const res = await fetch(`http://localhost:7208/api/clientes`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(newClient)
-        });
+      const res = await fetch(`http://localhost:7208/api/clientes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(newClient)
+      });
 
-        const data = await res.json();
-        if (!res.ok) {
-            throw new Error(data.message || 'Falha ao criar cliente.');
-        }
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Falha ao criar cliente.');
+      }
 
-        handleCloseModal(); 
-        fetchClientes(token); 
-        
+      handleCloseModal();
+      fetchClientes(token);
+
     } catch (err: any) {
-        setModalError(err.message);
+      setModalError(err.message);
     } finally {
-        setModalLoading(false);
+      setModalLoading(false);
     }
   };
-
 
   return (
     <main className={styles.clientes}>
@@ -237,7 +238,6 @@ export default function AdminClientesPage() {
                         {row.tipo}
                       </TableCell>
                       <TableCell>
-                        {/* Exibe o plano de serviços se for mensalista */}
                         {row.tipo === 'Mensalista' ? row.plano_servicos : '-'}
                       </TableCell>
                       <TableCell>{row.total_servicos}</TableCell>
@@ -249,7 +249,6 @@ export default function AdminClientesPage() {
                             textTransform: 'none',
                             fontWeight: 600,
                           }}
-                          // No futuro, isso pode levar a /admin/clientes/[id]
                           onClick={() => console.log(`Visualizar ${row.nome}`)}
                         >
                           Visualizar
@@ -264,7 +263,6 @@ export default function AdminClientesPage() {
         </TabPanel>
       </TabContext>
 
-      {/* Modal para Adicionar Cliente */}
       <Modal
         open={openAddModal}
         onClose={handleCloseModal}
@@ -273,7 +271,7 @@ export default function AdminClientesPage() {
           <Typography variant="h6" component="h2">
             Adicionar Novo Cliente
           </Typography>
-          
+
           {modalError && <Alert severity="error">{modalError}</Alert>}
 
           <TextField
@@ -314,8 +312,7 @@ export default function AdminClientesPage() {
               <MenuItem value={'Mensalista'}>Mensalista</MenuItem>
             </Select>
           </FormControl>
-          
-          {/* Campo condicional para plano de serviços */}
+
           {newClient.tipo === 'Mensalista' && (
             <TextField
               label="Nº de Serviços/Mês"
