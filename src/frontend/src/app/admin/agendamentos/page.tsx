@@ -141,7 +141,7 @@ export default function AdminAgendamentoPage() {
     const token = getToken();
     if (!token) return;
 
-    const apiField = type === 'status' ? 'statusagendamento' : 'status';
+    const apiField = type === 'status' ? 'pagamento' : 'status';
 
     try {
       const res = await fetch(`${API_BASE_URL}/admin/agendamentos/${id}/${apiField}`, {
