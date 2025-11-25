@@ -1,0 +1,97 @@
+.admin_dashboard {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 5rem;
+
+  h2 {
+    font-family: 'Epilogue', sans-serif;
+    font-size: 2.5rem;
+    font-weight: 700;
+    padding-bottom: .5rem;
+  }
+
+  h3 {
+    font-family: 'Epilogue', sans-serif;
+    font-size: .75rem;
+    font-weight: 400;
+    padding-bottom: 2rem;
+  }
+
+  .dashboard_text_card {
+    height: 5rem;
+    background-color: #F5F0F2;
+    border-radius: 12px;
+    padding: 1.5rem;
+
+    h4 {
+      font-family: 'Epilogue', sans-serif;
+      font-size: 1rem;
+      font-weight: 500;
+      padding-bottom: .5rem;
+    }
+
+    p {
+      font-family: 'Epilogue', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+  }
+
+  .dashboard_chart_card {
+    height: 25rem;
+    border: 1px solid #E5DBE0;
+    border-radius: 12px;
+    padding: 1.5rem;
+
+    h4 {
+      font-family: 'Epilogue', sans-serif;
+      font-size: 1rem;
+      font-weight: 500;
+      padding-bottom: .5rem;
+    }
+
+    h5 {
+      font-family: 'Epilogue', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      padding-bottom: .5rem;
+    }
+
+    p {
+      font-family: 'Epilogue', sans-serif;
+      font-size: 1rem;
+      font-weight: 400;
+      color: #8A6175;
+      padding-bottom: 1rem;
+    }
+  }
+
+  .acoes_rapidas {
+    display: flex;
+    flex-direction: column;
+    padding-top: 3rem;
+
+    h4 {
+      font-family: 'Epilogue', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      padding-bottom: 1rem;
+    }
+
+    .acoes_rapidas_list {
+      display: inline-flex;
+      column-gap: 1rem;
+
+      button {
+        background-color: #000;
+        font-size: .75rem;
+        font-weight: 600;
+        
+        a {
+          text-decoration: none;
+          color: #FFF;
+        }
+      }
+    }
+  }
+}

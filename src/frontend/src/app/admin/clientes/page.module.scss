@@ -1,0 +1,26 @@
+.clientes {
+  display: flex;
+  flex-direction: column;
+
+  .header {
+    display: inline-flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 1rem;
+
+    h2 {
+      font-family: 'Epilogue', sans-serif;
+      font-size: 2.5rem;
+      font-weight: 700;
+    }
+
+    button {
+      background-color: #F5F0F2;
+      color: #000;
+    }
+  }
+
+  .search_input {
+    background-color: #F5F0F2;
+  }
+}

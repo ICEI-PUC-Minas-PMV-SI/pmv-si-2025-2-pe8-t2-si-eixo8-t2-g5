@@ -1,0 +1,14 @@
+.admin {
+  min-height: calc(100dvh - 5rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  padding-top: 5rem;
+
+  .block {
+    width: 75dvw;
+    display: inline-flex;
+    padding-top: 5rem;
+  }
+}

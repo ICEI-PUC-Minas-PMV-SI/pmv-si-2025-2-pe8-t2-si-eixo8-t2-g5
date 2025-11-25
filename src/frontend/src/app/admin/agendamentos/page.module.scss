@@ -1,0 +1,31 @@
+.admin_agendamentos {
+  display: flex;
+  flex-direction: column;
+  
+  h2 {
+    font-family: 'Manrope', sans-serif;
+    font-size: 2.5rem;
+    font-weight: 700;
+    padding-bottom: .5rem;
+  }
+  
+  p {
+    font-family: 'Manrope', sans-serif;
+    font-size: .75rem;
+    font-weight: 400;
+    padding-bottom: 2rem;
+  }
+  
+  .search_input {
+    background-color: #F5F0F2;
+    margin-bottom: 1rem;
+  }
+  
+  .filters {
+    display: inline-flex;
+    justify-content: flex-start;
+    align-items: center;
+    column-gap: 1rem;
+    margin-bottom: 1rem;
+  }
+}
