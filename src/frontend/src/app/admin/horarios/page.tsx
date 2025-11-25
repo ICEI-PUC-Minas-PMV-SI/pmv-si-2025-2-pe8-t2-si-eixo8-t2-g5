@@ -31,6 +31,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import Tooltip from '@mui/material/Tooltip';
 
+const API_BASE_URL = 'http://localhost:7208/api';
 
 interface AgendaCellData {
   status: 'Disponível' | 'Ocupado' | 'Bloqueado';
@@ -120,12 +121,17 @@ export default function AdminHorariosPage() {
   const [isLoadingAgenda, setIsLoadingAgenda] = useState(false);
   const [errorAgenda, setErrorAgenda] = useState<string | null>(null);
   
+  const getToken = () => {
+    if (typeof window !== 'undefined') return localStorage.getItem('token');
+    return null;
+  };
+  
   useEffect(() => {
     const fetchHorariosConfig = async () => {
       setIsLoadingConfig(true);
       setErrorConfig(null);
       try {
-        const response = await fetch('/api/horarios/config');
+        const response = await fetch(`${API_BASE_URL}/horarios/config`);
         if (!response.ok) {
           throw new Error('Falha ao carregar horários de trabalho.');
         }
@@ -156,6 +162,8 @@ export default function AdminHorariosPage() {
       setErrorAgenda(null);
       setAgendaData(null);
       
+      const token = getToken();
+      
       try {
         const params = new URLSearchParams();
         params.append('date', date.format('YYYY-MM-DD'));
@@ -163,7 +171,9 @@ export default function AdminHorariosPage() {
         params.append('status', status);
         params.append('search', search);
 
-        const response = await fetch(`/api/admin/agenda-semana?${params.toString()}`); 
+        const response = await fetch(`${API_BASE_URL}/admin/agenda-semana?${params.toString()}`,  {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }); 
         if (!response.ok) {
           throw new Error('Falha ao carregar a agenda da semana.');
         }
@@ -197,12 +207,15 @@ export default function AdminHorariosPage() {
   const handleTimeChange = async (startTime: Dayjs, endTime: Dayjs) => {
     setIsLoadingConfig(true);
     setErrorConfig(null);
+    
+    const token = getToken();
 
     try {
-      const response = await fetch('/api/horarios/config', {
+      const response = await fetch(`${API_BASE_URL}/admin/horarios-config`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           periodo: currentPeriod,
