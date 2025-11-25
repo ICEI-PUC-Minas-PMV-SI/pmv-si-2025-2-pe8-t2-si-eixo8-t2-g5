@@ -1,7 +1,7 @@
 'use client';
 
 import TableContainer from '@mui/material/TableContainer';
-import styles from './page.module.scss';
+import styles from '../desempenho/page.module.scss';
 import Paper from '@mui/material/Paper';
 import Table from '@mui/material/Table';
 import TableHead from '@mui/material/TableHead';
@@ -13,6 +13,8 @@ import { LineChart } from '@mui/x-charts/LineChart';
 import { useState, useEffect, useCallback } from 'react';
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
+
+const API_BASE_URL = 'http://localhost:7208/api';
 
 interface ServicePerformance {
   servico: string;
@@ -56,7 +58,7 @@ export default function AdminDesempenhoPage() {
     try {
       
       // CORREÇÃO DA URL para usar o prefixo /api/
-      const response = await fetch('/api/admin/desempenho/servicos', {
+      const response = await fetch(`${API_BASE_URL}/admin/desempenho/servicos`, {
         headers: {
           'Authorization': `Bearer ${token}`, 
           'Content-Type': 'application/json'
