@@ -1,7 +1,7 @@
 'use client';
 
 import styles from './page.module.scss';
-import { useState, useEffect, FormEvent } from 'react'; 
+import { useState, useEffect } from 'react'; 
 import dayjs, { Dayjs } from 'dayjs';
 import 'dayjs/locale/pt-br';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
@@ -144,8 +144,8 @@ export default function AdminHorariosPage() {
         setNightStartTime(dayjs(data.noite.inicio, 'HH:mm'));
         setNightEndTime(dayjs(data.noite.fim, 'HH:mm'));
 
-      } catch (err: any) {
-        setErrorConfig(err.message);
+      } catch (err: unknown) {
+        if (err instanceof Error) setErrorConfig(err.message);
       } finally {
         setIsLoadingConfig(false);
       }
@@ -184,8 +184,8 @@ export default function AdminHorariosPage() {
           setErrorAgenda('Nenhum horário de trabalho configurado para esta semana.');
         }
 
-      } catch (err: any) {
-        setErrorAgenda(err.message);
+      } catch (err: unknown) {
+        if (err instanceof Error) setErrorAgenda(err.message);
       } finally {
         setIsLoadingAgenda(false);
       }
@@ -244,8 +244,8 @@ export default function AdminHorariosPage() {
       }
       handleClose();
 
-    } catch (err: any) {
-      setErrorConfig(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) setErrorConfig(err.message);
     } finally {
       setIsLoadingConfig(false);
     }

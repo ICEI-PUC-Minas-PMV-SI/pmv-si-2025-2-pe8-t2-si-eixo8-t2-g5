@@ -102,8 +102,8 @@ export default function RelatoriosAdminPage() {
         }
         const data = await res.json();
         setServicesList(data);
-      } catch (err: any) {
-        console.error("Erro ao buscar serviços:", err.message);
+      } catch (err: unknown) {
+        if (err instanceof Error) console.error("Erro ao buscar serviços:", err.message);
       }
     };
     fetchServices();
@@ -162,7 +162,9 @@ export default function RelatoriosAdminPage() {
           } else {
              errorText = errorData.message || errorData.erro || errorText;
           }
-        } catch (jsonError) {}
+        } catch (jsonError) {
+          throw jsonError;
+        }
         throw new Error(errorText);
       }
 
@@ -173,11 +175,13 @@ export default function RelatoriosAdminPage() {
         setError('Nenhum resultado encontrado para os filtros selecionados.');
       }
 
-    } catch (err: any) {
-      if (err.message.includes('Unexpected token')) {
-        setError('Erro de rede: Não foi possível conectar à API.');
-      } else {
-        setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        if (err.message.includes('Unexpected token')) {
+          setError('Erro de rede: Não foi possível conectar à API.');
+        } else {
+          setError(err.message);
+        }
       }
     } finally {
       setIsLoading(false);

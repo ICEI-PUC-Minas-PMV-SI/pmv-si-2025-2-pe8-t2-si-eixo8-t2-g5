@@ -40,6 +40,15 @@ interface Agendamento {
   pagamento: string;
 }
 
+interface AgendamentoAPIResponse {
+  id: number;
+  cliente: string;
+  servico: string;
+  data_hora: string;
+  statusagendamento: string;
+  status: string;
+}
+
 interface Servico {
   id: number;
   name: string;
@@ -81,9 +90,9 @@ export default function AdminAgendamentoPage() {
       if (res.status === 401) throw new Error('Acesso não autorizado. Faça login novamente.');
       if (!res.ok) throw new Error(`Erro na API (${res.status})`);
 
-      const data = await res.json();
+      const data: AgendamentoAPIResponse[] = await res.json();
 
-      const mapped = data.map((item: any) => {
+      const mapped = data.map((item) => {
         const [dataPart, horaPart] = item.data_hora.split(' ');
         return {
           id: item.id,
@@ -98,9 +107,11 @@ export default function AdminAgendamentoPage() {
 
       setAgendamentos(mapped);
 
-    } catch (err: any) {
-      setError(err.message);
-      if (err.message.includes('autorizado')) router.push('/login');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+        if (err.message.includes('autorizado')) router.push('/login');
+      }
     } finally {
       setLoading(false);
     }
@@ -117,8 +128,8 @@ export default function AdminAgendamentoPage() {
         if (!res.ok) throw new Error('Falha ao carregar serviços.');
         const data = await res.json();
         setServicesList(data);
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        if (err instanceof Error) setError(err.message);
       }
     };
     fetchServices();
@@ -158,8 +169,8 @@ export default function AdminAgendamentoPage() {
       setAgendamentos(prev =>
         prev.map(ag => ag.id === id ? { ...ag, [type]: value } : ag)
       );
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) setError(err.message);
     }
   };
 
@@ -178,8 +189,8 @@ export default function AdminAgendamentoPage() {
       if (!res.ok) throw new Error('Erro ao deletar');
 
       setAgendamentos(prev => prev.filter(ag => ag.id !== id));
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) setError(err.message);
     }
   };
 

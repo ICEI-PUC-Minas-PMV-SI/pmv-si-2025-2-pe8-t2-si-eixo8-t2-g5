@@ -1,6 +1,7 @@
 import Button from '@mui/material/Button';
 import styles from './OwnerPresentation.module.scss';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import Image from 'next/image';
 
 export default function HomeOwnerPresentation() {
   return (
@@ -23,28 +24,28 @@ export default function HomeOwnerPresentation() {
         <div className={styles.main}>
           <div className={styles.gallery_list}>
             <div className={styles.gallery_item}>
-              <img src="images/gallery_1.png" alt="Gallery 1" />
+              <Image src="images/gallery_1.png" alt="Gallery 1" />
               <p>Tratamentos</p>
             </div>
             <div className={styles.gallery_item}>
-              <img src="images/gallery_2.png" alt="Gallery 2" />
+              <Image src="images/gallery_2.png" alt="Gallery 2" />
               <p>Tratamentos</p>
             </div>
             <div className={styles.gallery_item}>
-              <img src="images/gallery_3.png" alt="Gallery 3" />
+              <Image src="images/gallery_3.png" alt="Gallery 3" />
               <p>Tratamentos</p>
             </div>
             <div className={styles.gallery_item}>
-              <img src="images/gallery_4.png" alt="Gallery 4" />
+              <Image src="images/gallery_4.png" alt="Gallery 4" />
               <p>Tratamentos</p>
             </div>
             <div className={styles.gallery_item}>
-              <img src="images/gallery_5.png" alt="Gallery 5" />
+              <Image src="images/gallery_5.png" alt="Gallery 5" />
               <p>Tratamentos</p>
             </div>
           </div>
           <div className={styles.owner_info}>
-            <img src="images/owner.png" alt="Owner" />
+            <Image src="images/owner.png" alt="Owner" />
             <div>
               <p>
                 Bianca Souza

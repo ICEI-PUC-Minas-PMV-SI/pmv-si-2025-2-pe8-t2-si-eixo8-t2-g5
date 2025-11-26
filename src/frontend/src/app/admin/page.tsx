@@ -1,6 +1,6 @@
 'use client';
 
-import styles from './page.module.scss';
+import styles from './relatorios/page.module.scss';
 import Tab from '@mui/material/Tab';
 import TabContext from '@mui/lab/TabContext';
 import TabList from '@mui/lab/TabList';
@@ -93,8 +93,8 @@ export default function RelatoriosAdminPage() {
         }
         const data = await res.json();
         setServicesList(data);
-      } catch (err: any) {
-        console.error("Erro ao buscar serviços:", err.message);
+      } catch (err: unknown) {
+        if (err instanceof Error) console.error("Erro ao buscar serviços:", err.message);
         setError("Não foi possível carregar a lista de serviços.");
       }
     };
@@ -154,7 +154,9 @@ export default function RelatoriosAdminPage() {
           } else {
              errorText = errorData.message || errorData.erro || errorText;
           }
-        } catch (jsonError) {}
+        } catch (jsonError) {
+          throw jsonError;
+        }
         throw new Error(errorText);
       }
 
@@ -165,11 +167,13 @@ export default function RelatoriosAdminPage() {
         setError('Nenhum resultado encontrado para os filtros selecionados.');
       }
 
-    } catch (err: any) {
-      if (err.message.includes('Unexpected token')) {
-        setError('Erro de rede: Não foi possível conectar à API.');
-      } else {
-        setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        if (err.message.includes('Unexpected token')) {
+          setError('Erro de rede: Não foi possível conectar à API.');
+        } else {
+          setError(err.message);
+        }
       }
     } finally {
       setIsLoading(false);

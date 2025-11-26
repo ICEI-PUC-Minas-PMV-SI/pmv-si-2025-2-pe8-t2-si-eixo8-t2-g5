@@ -2,7 +2,7 @@
 
 import Button from '@mui/material/Button';
 import styles from './page.module.scss';
-import { useState, useEffect, useCallback, FormEvent } from 'react';
+import { useState, useEffect, useCallback, FormEvent, Suspense } from 'react';
 import {
   Box,
   Tab,
@@ -39,8 +39,16 @@ interface Cliente {
   total_servicos: number;
 }
 
+interface ClienteAPIResponse {
+  id: number;
+  nome: string;
+  tipo: 'Mensalista' | 'Avulso';
+  plano_servicos: number | null;
+  total_servicos: string;
+}
+
 const modalStyle = {
-  position: 'absolute' as 'absolute',
+  position: 'absolute',
   top: '50%',
   left: '50%',
   transform: 'translate(-50%, -50%)',
@@ -54,7 +62,7 @@ const modalStyle = {
   gap: 2
 };
 
-export default function AdminClientesPage() {
+function AdminClientesPageContent() {
   const [tab, setTab] = useState('1');
   const [search, setSearch] = useState('');
   const router = useRouter();
@@ -90,21 +98,22 @@ export default function AdminClientesPage() {
       if (res.status === 401) throw new Error('Acesso não autorizado. Faça login.');
       if (!res.ok) throw new Error('Falha ao buscar clientes.');
 
-      const data = await res.json();
+      const data: ClienteAPIResponse[] = await res.json();
 
-      setClientes(data.map((c: any) => ({
+      setClientes(data.map((c) => ({
         ...c,
         total_servicos: parseInt(c.total_servicos, 10)
       })));
 
-    } catch (err: any) {
-      setError(err.message);
-      if (err.message.includes('autorizado')) router.push('/login');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+        if (err.message.includes('autorizado')) router.push('/login');
+      }
     } finally {
       setLoading(false);
     }
   }, [search, router]);
-
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -125,7 +134,6 @@ export default function AdminClientesPage() {
   useEffect(() => {
     if (searchParams.get('create_new') === 'true') {
       handleOpenModal();
-
       router.replace(pathname);
     }
   }, [searchParams, router, pathname]);
@@ -179,8 +187,8 @@ export default function AdminClientesPage() {
       handleCloseModal();
       fetchClientes(token);
 
-    } catch (err: any) {
-      setModalError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) setModalError(err.message);
     } finally {
       setModalLoading(false);
     }
@@ -337,3 +345,18 @@ export default function AdminClientesPage() {
   );
 }
 
+function LoadingFallback() {
+  return (
+    <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+      <CircularProgress />
+    </Box>
+  );
+}
+
+export default function AdminClientesPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <AdminClientesPageContent />
+    </Suspense>
+  );
+}

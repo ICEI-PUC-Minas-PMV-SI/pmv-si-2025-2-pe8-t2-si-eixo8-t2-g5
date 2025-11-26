@@ -53,7 +53,7 @@ export default function LoginPage() {
 
       router.push('/admin/dashboard');
     } catch (error) {
-      alert('Erro de conexão com o servidor. Verifique se o backend está rodando.');
+      alert(`Erro de conexão com o servidor. Verifique se o backend está rodando: ${error}`);
     } finally {
       setLoading(false);
     }

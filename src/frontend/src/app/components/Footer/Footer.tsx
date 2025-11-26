@@ -1,10 +1,11 @@
+import Image from 'next/image';
 import styles from './Footer.module.scss';
 
 export default function Footer() {
   return (
     <footer className={styles.footer}>
       <div>
-        <img src="images/logo_black.png" alt="Logo" />
+        <Image src="images/logo_black.png" alt="Logo" />
         <ul>
           <li>Início</li>
           <li>Serviços</li>

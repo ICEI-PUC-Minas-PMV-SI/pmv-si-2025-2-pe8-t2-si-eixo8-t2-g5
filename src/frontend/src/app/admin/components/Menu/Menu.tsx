@@ -4,7 +4,6 @@ import styles from './Menu.module.scss';
 import Link from 'next/link';
 import HomeFilledIcon from '@mui/icons-material/HomeFilled';
 import PeopleIcon from '@mui/icons-material/People';
-import ContentCutIcon from '@mui/icons-material/ContentCut';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import FeedIcon from '@mui/icons-material/Feed';

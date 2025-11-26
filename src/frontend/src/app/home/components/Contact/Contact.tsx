@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import styles from './Contact.module.scss';
 
 export default function HomeContact() {
@@ -12,10 +13,10 @@ export default function HomeContact() {
           <h3>Dúvidas? Converse conosco!</h3>
           <p>Fale conosco no WhatsApp - clique no icone abaixo</p>
           <a href="https://api.whatsapp.com/send?phone=5531993775019" target='_blank'>
-            <img src="images/whatsapp.png" alt="Whatsapp" />
+            <Image src="images/whatsapp.png" alt="Whatsapp" />
           </a>
         </div>
-        <img src="images/contact.png" alt="Contact" />
+        <Image src="images/contact.png" alt="Contact" />
       </div>
     </div>
   )
