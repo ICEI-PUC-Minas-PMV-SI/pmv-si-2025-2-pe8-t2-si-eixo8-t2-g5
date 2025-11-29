@@ -21,6 +21,7 @@ import {
 } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import type { Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
 import styles from './page.module.scss';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -45,8 +46,8 @@ interface AgendamentoAPIResponse {
   cliente: string;
   servico: string;
   data_hora: string;
-  statusagendamento: string;
-  status: string;
+  statusagendamento: string;  // Appointment status from DB field 'status'
+  status: string;              // Payment status from DB field 'pagamento'
 }
 
 interface Servico {
@@ -90,18 +91,29 @@ export default function AdminAgendamentoPage() {
       if (res.status === 401) throw new Error('Acesso não autorizado. Faça login novamente.');
       if (!res.ok) throw new Error(`Erro na API (${res.status})`);
 
-      const data: AgendamentoAPIResponse[] = await res.json();
+      const rawData = await res.json();
+      
+      // Convert object to array if necessary
+      let data: AgendamentoAPIResponse[] = [];
+      if (Array.isArray(rawData)) {
+        data = rawData;
+      } else if (typeof rawData === 'object' && rawData !== null) {
+        // Convert object with numeric keys to array
+        data = Object.values(rawData);
+      }
 
       const mapped = data.map((item) => {
-        const [dataPart, horaPart] = item.data_hora.split(' ');
+        // Parse ISO 8601 date string properly
+        const dateTime = dayjs(item.data_hora);
+        
         return {
           id: item.id,
           cliente: item.cliente,
           servico: item.servico,
-          data: dataPart,
-          hora: horaPart,
-          status: item.statusagendamento,
-          pagamento: item.status
+          data: dateTime.format('DD/MM/YYYY'), // Format: 05/12/2025
+          hora: dateTime.format('HH:mm'),      // Format: 12:00
+          status: item.statusagendamento,      // Appointment status (Pendente, Confirmado, etc.)
+          pagamento: item.status               // Payment status (Pendente, Pago, etc.)
         };
       });
 
@@ -152,25 +164,40 @@ export default function AdminAgendamentoPage() {
     const token = getToken();
     if (!token) return;
 
-    const apiField = type === 'status' ? 'pagamento' : 'status';
+    // Map frontend fields to backend endpoints
+    // Frontend 'status' → backend '/status' endpoint expects { status: value }
+    // Frontend 'pagamento' → backend '/pagamento' endpoint expects { pagamento: value }
+    const endpoint = type === 'status' ? 'status' : 'pagamento';
+    const bodyField = type === 'status' ? 'status' : 'pagamento';
 
     try {
-      const res = await fetch(`${API_BASE_URL}/admin/agendamentos/${id}/${apiField}`, {
+      const res = await fetch(`${API_BASE_URL}/admin/agendamentos/${id}/${endpoint}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ [apiField]: value })
+        body: JSON.stringify({ [bodyField]: value })
       });
 
-      if (!res.ok) throw new Error('Falha ao atualizar');
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Falha ao atualizar');
+      }
 
+      // Update local state
       setAgendamentos(prev =>
         prev.map(ag => ag.id === id ? { ...ag, [type]: value } : ag)
       );
+      
+      // Show success message
+      console.log(`${type} atualizado com sucesso para: ${value}`);
+      
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
+      if (err instanceof Error) {
+        setError(err.message);
+        console.error('Erro ao atualizar:', err);
+      }
     }
   };
 
@@ -193,10 +220,17 @@ export default function AdminAgendamentoPage() {
       if (err instanceof Error) setError(err.message);
     }
   };
+  
+  const handleOpenAgendamentoPage = () => {
+    router.push('/agendamento');
+  }
 
   return (
     <main className={styles.admin_agendamentos}>
-      <h2>Agendamentos</h2>
+      <div className={styles.header}>
+        <h2>Agendamentos</h2>
+        <Button variant="contained" onClick={handleOpenAgendamentoPage}>Criar agendamento</Button>
+      </div>
       <p>Visualize e gerencie todos os agendamentos do salão.</p>
 
       <OutlinedInput

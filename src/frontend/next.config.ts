@@ -9,11 +9,6 @@ const nextConfig: NextConfig = {
         permanent: true
       },
       {
-        source: '/agendamento',
-        destination: '/login',
-        permanent: true
-      },
-      {
         source: '/home',
         destination: '/login',
         permanent: true

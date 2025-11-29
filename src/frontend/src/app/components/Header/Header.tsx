@@ -8,7 +8,7 @@ export default function Header() {
   return (
     <header className={styles.header}>
       <Link href='/login'>
-        <Image src="images/logo_black.png" alt="Logo" />
+        <Image src="/images/logo_black.png" alt="Logo" />
       </Link>
       <ul>
         <li>

@@ -1,6 +1,11 @@
 const db = require('../config/db');
 const dayjs = require('dayjs');
+const isSameOrAfter = require('dayjs/plugin/isSameOrAfter');
+const isSameOrBefore = require('dayjs/plugin/isSameOrBefore');
 require('dayjs/locale/pt-br');
+
+dayjs.extend(isSameOrAfter);
+dayjs.extend(isSameOrBefore);
 dayjs.locale('pt-br');
 
 const _getAvailableSlots = async (date, serviceId) => {
@@ -32,6 +37,7 @@ const _getAvailableSlots = async (date, serviceId) => {
     const allSlots = [];
     for (let hour = 8; hour < 22; hour++) { 
         allSlots.push(dayjs().hour(hour).minute(0).format('HH:mm'));
+        allSlots.push(dayjs().hour(hour).minute(30).format('HH:mm')); // Add 30-minute intervals
     }
 
 
@@ -42,9 +48,9 @@ const _getAvailableSlots = async (date, serviceId) => {
         
         const isWorkingTime = configRows.some(config => {
             const inicio = dayjs(`${date} ${config.hora_inicio}`); 
-            const fim = dayjs(`${date} ${config.hora_fim}`);     
+            const fim = dayjs(`${date} ${config.hora_fim}`);     
             
-            return slotStartTime.isAfter(inicio.subtract(1, 'minute')) && slotEndTime.isBefore(fim.add(1, 'minute'));
+            return slotStartTime.isSameOrAfter(inicio) && slotEndTime.isSameOrBefore(fim);
         });
 
         if (!isWorkingTime) {
@@ -54,7 +60,7 @@ const _getAvailableSlots = async (date, serviceId) => {
         
         const isBusy = busySlots.some(busyTime => {
             const busySlot = dayjs(`${date} ${busyTime}`);
-            const busyEnd = busySlot.add(60, 'minute'); 
+            const busyEnd = busySlot.add(durationMinutes, 'minute'); // Use actual service duration
 
             return (slotStartTime.isBefore(busyEnd) && slotEndTime.isAfter(busySlot));
         });
@@ -117,7 +123,7 @@ exports.getAgendamentos = async (req, res) => {
       console.error('Erro ao buscar agendamentos com filtros:', err);
       res.status(500).json({ message: 'Erro interno no servidor.' });
     }
-  };
+};
   
 exports.updateStatusAgendamento = async (req, res) => {
     const { id } = req.params;
@@ -355,6 +361,9 @@ exports.getAgendaSemana = async (req, res) => {
 };
 
 
+// ============================================================================
+// ENDPOINT: Get Available Time Slots
+// ============================================================================
 exports.getHorariosDisponiveis = async (req, res) => {
     const { date, serviceId } = req.query;
 
@@ -374,6 +383,9 @@ exports.getHorariosDisponiveis = async (req, res) => {
 };
 
 
+// ============================================================================
+// ENDPOINT: Create New Appointment
+// ============================================================================
 exports.criarAgendamento = async (req, res) => {
     const { nome_cliente, whatsapp, servico_id, data_hora } = req.body;
 
@@ -382,11 +394,23 @@ exports.criarAgendamento = async (req, res) => {
     }
 
     try {
+        // First, check if the time slot is still available
+        const dateOnly = data_hora.split(' ')[0];
+        const timeOnly = data_hora.split(' ')[1].substring(0, 5); // Get HH:MM
+        
+        const availableSlots = await _getAvailableSlots(dateOnly, parseInt(servico_id, 10));
+        
+        if (!availableSlots.includes(timeOnly)) {
+            return res.status(409).json({ 
+                message: 'Este horário não está mais disponível. Por favor, selecione outro horário.' 
+            });
+        }
+
         const query = `
             INSERT INTO agendamentos 
             (nome_cliente, whatsapp, servico, data_hora, status, pagamento)
             VALUES ($1, $2, $3, $4, 'Pendente', 'Pendente')
-            RETURNING id, data_hora, status;
+            RETURNING id, nome_cliente, data_hora, status;
         `;
         const values = [nome_cliente, whatsapp, servico_id, data_hora];
 

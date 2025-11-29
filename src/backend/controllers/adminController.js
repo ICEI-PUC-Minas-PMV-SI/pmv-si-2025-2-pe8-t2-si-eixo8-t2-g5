@@ -222,7 +222,8 @@ exports.getAgendaSemana = async (req, res) => {
         a.data_hora, 
         a.nome_cliente, 
         a.status,
-        s.name AS serviceName
+        s.name AS servicename,
+        s.id AS serviceid
       FROM 
         agendamentos a
       LEFT JOIN 
@@ -237,7 +238,7 @@ exports.getAgendaSemana = async (req, res) => {
       params.push(serviceId);
     }
     if (status && status !== '0') {
-      const statusMap = { '1': 'pendente', '2': 'confirmado', '3': 'concluido' }; 
+      const statusMap = { '1': 'Pendente', '2': 'Confirmado', '3': 'Concluído' }; 
       if(statusMap[status]) {
         query += ` AND a.status = $${paramIndex++}`;
         params.push(statusMap[status]);
@@ -254,23 +255,28 @@ exports.getAgendaSemana = async (req, res) => {
     const configResult = await db.query('SELECT hora_inicio, hora_fim FROM horarios_configuracao WHERE ativo = true');
     const configRows = configResult.rows;
     
+    // Generate time slots with 30-minute intervals
     const timeSlots = [];
     for (let hour = 8; hour < 22; hour++) { 
       timeSlots.push(dayjs().hour(hour).minute(0).format('HH:mm'));
+      timeSlots.push(dayjs().hour(hour).minute(30).format('HH:mm'));
     }
 
     const grid = [];
     
     for (const slotStart of timeSlots) { 
       const slotRow = [];
-      const slotStartTime = parseInt(slotStart.split(':')[0]); 
+      const [slotHour, slotMinute] = slotStart.split(':').map(Number);
 
       for (let dayIndex = 1; dayIndex <= 6; dayIndex++) { 
         const currentDay = dayjs(date).day(dayIndex);
         
+        // Find appointment that matches this day and time slot
         const appointment = agendamentos.find(app => {
           const appDate = dayjs(app.data_hora);
-          return appDate.isSame(currentDay, 'day') && appDate.hour() === slotStartTime;
+          return appDate.isSame(currentDay, 'day') && 
+                 appDate.hour() === slotHour && 
+                 appDate.minute() === slotMinute;
         });
 
         if (appointment) {
@@ -278,14 +284,23 @@ exports.getAgendaSemana = async (req, res) => {
             status: 'Ocupado',
             appId: appointment.id,
             cliente: appointment.nome_cliente,
-            servico: appointment.serviceName,
+            servico: appointment.servicename || 'Serviço não especificado',
+            servicoId: appointment.serviceid,
             statusApp: appointment.status,
           });
         } else {
+          // Check if this time slot is within working hours
           const isWorkingTime = configRows.some(config => {
-             const inicio = parseInt(config.hora_inicio.split(':')[0]); 
-             const fim = parseInt(config.hora_fim.split(':')[0]);     
-             return slotStartTime >= inicio && slotStartTime < fim;
+            const inicioHour = parseInt(config.hora_inicio.split(':')[0]); 
+            const inicioMinute = parseInt(config.hora_inicio.split(':')[1]); 
+            const fimHour = parseInt(config.hora_fim.split(':')[0]);
+            const fimMinute = parseInt(config.hora_fim.split(':')[1]);
+            
+            const slotMinutes = slotHour * 60 + slotMinute;
+            const inicioMinutes = inicioHour * 60 + inicioMinute;
+            const fimMinutes = fimHour * 60 + fimMinute;
+            
+            return slotMinutes >= inicioMinutes && slotMinutes < fimMinutes;
           });
 
           if (isWorkingTime) {
@@ -298,10 +313,15 @@ exports.getAgendaSemana = async (req, res) => {
       grid.push(slotRow);
     }
 
+    // Format display time slots
     const displayTimeSlots = timeSlots.map(slot => {
-      const start = slot;
-      const end = dayjs().hour(parseInt(slot.split(':')[0]) + 1).minute(0).format('HH:mm');
-      return `${start} - ${end}`;
+      const [hour, minute] = slot.split(':').map(Number);
+      const endMinute = minute + 30;
+      const endHour = hour + Math.floor(endMinute / 60);
+      const finalMinute = endMinute % 60;
+      
+      const end = `${String(endHour).padStart(2, '0')}:${String(finalMinute).padStart(2, '0')}`;
+      return `${slot} - ${end}`;
     });
 
     res.status(200).json({ timeSlots: displayTimeSlots, grid });
@@ -310,4 +330,4 @@ exports.getAgendaSemana = async (req, res) => {
     console.error('Erro ao buscar agenda da semana:', error);
     res.status(500).json({ message: 'Erro ao buscar agenda.', error: error.message });
   }
-};
+};;
