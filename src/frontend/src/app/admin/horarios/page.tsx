@@ -109,7 +109,7 @@ export default function AdminHorariosPage() {
   const [nightEndTime, setNightEndTime] = useState<Dayjs>(dayjs().hour(22).minute(0));
   
   const [openEditDialog, setOpenEditDialog] = useState(false);
-  const [currentPeriod, setCurrentPeriod] = useState<'manha' | 'tarde' | 'noite'>('manha');
+  const [currentPeriod, setCurrentPeriod] = useState<'Manhã' | 'Tarde' | 'Noite'>('Manhã');
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
   const [errorConfig, setErrorConfig] = useState<string | null>(null);
 
@@ -137,12 +137,12 @@ export default function AdminHorariosPage() {
         }
         const data = await response.json();
         
-        setMorningStartTime(dayjs(data.manha.inicio, 'HH:mm'));
-        setMorningEndTime(dayjs(data.manha.fim, 'HH:mm'));
-        setAfternoonStartTime(dayjs(data.tarde.inicio, 'HH:mm'));
-        setAfternoonEndTime(dayjs(data.tarde.fim, 'HH:mm'));
-        setNightStartTime(dayjs(data.noite.inicio, 'HH:mm'));
-        setNightEndTime(dayjs(data.noite.fim, 'HH:mm'));
+        setMorningStartTime(dayjs(data['Manhã'].inicio, 'HH:mm'));
+        setMorningEndTime(dayjs(data['Manhã'].fim, 'HH:mm'));
+        setAfternoonStartTime(dayjs(data['Tarde'].inicio, 'HH:mm'));
+        setAfternoonEndTime(dayjs(data['Tarde'].fim, 'HH:mm'));
+        setNightStartTime(dayjs(data['Noite'].inicio, 'HH:mm'));
+        setNightEndTime(dayjs(data['Noite'].fim, 'HH:mm'));
 
       } catch (err: unknown) {
         if (err instanceof Error) setErrorConfig(err.message);
@@ -195,7 +195,7 @@ export default function AdminHorariosPage() {
   }, [date, service, status, search]);
 
 
-  const openTimeDialog = (type: 'manha' | 'tarde' | 'noite') => {
+  const openTimeDialog = (type: 'Manhã' | 'Tarde' | 'Noite') => {
     setCurrentPeriod(type);
     setOpenEditDialog(true);
   };
@@ -229,15 +229,15 @@ export default function AdminHorariosPage() {
       }
       
       switch (currentPeriod) {
-        case 'manha':
+        case 'Manhã':
           setMorningStartTime(startTime);
           setMorningEndTime(endTime);
           break;
-        case 'tarde':
+        case 'Tarde':
           setAfternoonStartTime(startTime);
           setAfternoonEndTime(endTime);
           break;
-        case 'noite':
+        case 'Noite':
           setNightStartTime(startTime);
           setNightEndTime(endTime);
           break;
@@ -253,11 +253,11 @@ export default function AdminHorariosPage() {
 
   const getCurrentTimes = () => {
     switch (currentPeriod) {
-      case 'manha':
+      case 'Manhã':
         return { start: morningStartTime, end: morningEndTime };
-      case 'tarde':
+      case 'Tarde':
         return { start: afternoonStartTime, end: afternoonEndTime };
-      case 'noite':
+      case 'Noite':
         return { start: nightStartTime, end: nightEndTime };
     }
   };
@@ -300,21 +300,21 @@ export default function AdminHorariosPage() {
                 <h4>Manhã</h4>
                 <p>{morningStartTime.format('HH:mm')} - {morningEndTime.format('HH:mm')}</p>
               </div>
-              <Button onClick={() => openTimeDialog('manha')} variant="contained">Editar</Button>
+              <Button onClick={() => openTimeDialog('Manhã')} variant="contained">Editar</Button>
             </div>
             <div className={styles.available_dates_item}>
               <div className={styles.available_dates_item_info}>
                 <h4>Tarde</h4>
                 <p>{afternoonStartTime.format('HH:mm')} - {afternoonEndTime.format('HH:mm')}</p>
               </div>
-              <Button onClick={() => openTimeDialog('tarde')} variant="contained">Editar</Button>
+              <Button onClick={() => openTimeDialog('Tarde')} variant="contained">Editar</Button>
             </div>
             <div className={styles.available_dates_item}>
               <div className={styles.available_dates_item_info}>
                 <h4>Noite</h4>
                 <p>{nightStartTime.format('HH:mm')} - {nightEndTime.format('HH:mm')}</p>
               </div>
-              <Button onClick={() => openTimeDialog('noite')} variant="contained">Editar</Button>
+              <Button onClick={() => openTimeDialog('Noite')} variant="contained">Editar</Button>
             </div>
           </div>
           <EditDialog
